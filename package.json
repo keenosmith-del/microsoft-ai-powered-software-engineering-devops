@@ -1,0 +1,33 @@
+{
+  "name": "microsoft-ai-powered-software-engineering-devops",
+  "version": "1.0.0",
+  "description": "A cloud-native, AI-powered software engineering and DevOps operations platform built on Microsoft Azure and Microsoft Foundry.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keenosmith-del/microsoft-ai-powered-software-engineering-devops.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/keenosmith-del/microsoft-ai-powered-software-engineering-devops/issues"
+  },
+  "homepage": "https://github.com/keenosmith-del/microsoft-ai-powered-software-engineering-devops#readme",
+  "dependencies": {
+    "@azure/identity": "^4.13.3",
+    "@microsoft/agent-framework": "^0.0.1-beta",
+    "@octokit/rest": "^22.0.1",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.3",
+    "express": "^5.2.1",
+    "openai": "^7.22.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
