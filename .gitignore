@@ -1,0 +1,40 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Local development
+.cache/
+.tmp/
+temp/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Azure / local tooling
+.azure/
+
+# Generated files
+*.generated.*
