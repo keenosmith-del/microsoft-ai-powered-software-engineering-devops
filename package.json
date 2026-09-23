@@ -20,7 +20,6 @@
   "homepage": "https://github.com/keenosmith-del/microsoft-ai-powered-software-engineering-devops#readme",
   "dependencies": {
     "@azure/identity": "^4.13.3",
-    "@microsoft/agent-framework": "^0.0.1-beta",
     "@octokit/rest": "^22.0.1",
     "cors": "^2.8.6",
     "dotenv": "^18.0.3",

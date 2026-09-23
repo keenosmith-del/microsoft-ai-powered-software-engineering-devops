@@ -38,3 +38,4 @@ venv/
 
 # Generated files
 *.generated.*
+agent-runtime/.venv/
