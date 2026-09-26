@@ -1,5 +1,4 @@
 import os
-
 from pathlib import Path
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
@@ -7,28 +6,13 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
 
 
 class FoundryClient:
-
     def __init__(self):
-
-        project_endpoint = os.getenv("FOUNDRY_PROJECT_ENDPOINT")
-        deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-
-        if not project_endpoint:
-            raise RuntimeError(
-                "FOUNDRY_PROJECT_ENDPOINT is not configured."
-            )
-
-        if not deployment:
-            raise RuntimeError(
-                "AZURE_OPENAI_DEPLOYMENT is not configured."
-            )
-
-        self.deployment = deployment
+        project_endpoint = os.environ["FOUNDRY_PROJECT_ENDPOINT"]
 
         token_provider = get_bearer_token_provider(
             DefaultAzureCredential(),
@@ -40,10 +24,9 @@ class FoundryClient:
             api_key=token_provider,
         )
 
-    def chat(self, prompt: str) -> str:
-
+    def chat(self, prompt: str, model: str) -> str:
         response = self.client.chat.completions.create(
-            model=self.deployment,
+            model=model,
             messages=[
                 {
                     "role": "user",
@@ -58,13 +41,11 @@ class FoundryClient:
                 "Foundry returned no completion choices."
             )
 
-        choice = response.choices[0]
-        content = choice.message.content
+        content = response.choices[0].message.content
 
         if not content:
             raise RuntimeError(
-                "Foundry returned an empty message content. "
-                f"Finish reason: {choice.finish_reason}."
+                "Foundry returned an empty response."
             )
 
         return content

@@ -1,0 +1,493 @@
+.engineering-page {
+  width: min(1440px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 56px 0 80px;
+}
+
+/* ---------- Header ---------- */
+
+.engineering-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 48px;
+
+  padding-bottom: 42px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.engineering-header h1 {
+  margin: 0;
+
+  color: #f5f5f5;
+
+  font-size: clamp(38px, 5vw, 64px);
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.engineering-header p {
+  max-width: 650px;
+
+  margin: 20px 0 0;
+
+  color: #858585;
+
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.engineering-runtime {
+  min-width: 190px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 9px;
+
+  color: #555555;
+
+  font-size: 10px;
+}
+
+.runtime-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  color: #8d8d8d;
+
+  font-size: 10px;
+}
+
+.runtime-dot {
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: #d7d7d7;
+
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* ---------- Metrics ---------- */
+
+.engineering-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.engineering-metric {
+  min-height: 116px;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+
+  padding: 24px;
+
+  box-sizing: border-box;
+
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.engineering-metric:last-child {
+  border-right: none;
+}
+
+.engineering-metric-icon {
+  width: 32px;
+  height: 32px;
+
+  flex-shrink: 0;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+
+  color: #8a8a8a;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.engineering-metric span {
+  display: block;
+
+  color: #555555;
+
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.engineering-metric strong {
+  display: block;
+
+  margin-top: 9px;
+
+  color: #d0d0d0;
+
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.engineering-metric small {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #505050;
+
+  font-size: 9px;
+}
+
+/* ---------- Panels ---------- */
+
+.engineering-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr);
+
+  gap: 16px;
+
+  margin-top: 16px;
+}
+
+.engineering-panel {
+  min-width: 0;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.engineering-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+
+  padding: 24px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.engineering-panel-header .eyebrow {
+  margin-bottom: 7px;
+}
+
+.engineering-panel-header h2 {
+  margin: 0;
+
+  color: #dedede;
+
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.engineering-panel-header > svg {
+  color: #555555;
+}
+
+/* ---------- Health ---------- */
+
+.health-overview {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+
+  min-height: 270px;
+}
+
+.health-score {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  padding: 28px;
+
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.health-score strong {
+  color: #ededed;
+
+  font-size: 38px;
+  font-weight: 300;
+  letter-spacing: -0.05em;
+}
+
+.health-score span {
+  margin-top: 7px;
+
+  color: #555555;
+
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.health-services {
+  display: grid;
+}
+
+.health-service {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 18px 22px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.health-service:last-child {
+  border-bottom: none;
+}
+
+.health-service span {
+  display: block;
+
+  color: #a8a8a8;
+
+  font-size: 11px;
+}
+
+.health-service small {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #4f4f4f;
+
+  font-size: 9px;
+}
+
+.health-service svg {
+  color: #8c8c8c;
+}
+
+.panel-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  color: #777777;
+
+  font-size: 9px;
+}
+
+.panel-status-dot {
+  width: 5px;
+  height: 5px;
+
+  border-radius: 50%;
+
+  background: #cfcfcf;
+}
+
+.signal-count {
+  padding-top: 2px;
+
+  color: #505050;
+
+  font-size: 9px;
+}
+
+/* ---------- Empty State ---------- */
+
+.engineering-empty-state {
+  min-height: 270px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  padding: 40px;
+
+  text-align: center;
+}
+
+.engineering-empty-icon {
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 50%;
+
+  color: #777777;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.engineering-empty-state h3 {
+  margin: 17px 0 0;
+
+  color: #9a9a9a;
+
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.engineering-empty-state p {
+  max-width: 290px;
+
+  margin: 8px 0 0;
+
+  color: #505050;
+
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+/* ---------- Repository ---------- */
+
+.repository-placeholder {
+  min-height: 180px;
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  padding: 30px;
+
+  box-sizing: border-box;
+}
+
+.repository-placeholder > svg {
+  color: #555555;
+}
+
+.repository-placeholder strong {
+  display: block;
+
+  color: #999999;
+
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.repository-placeholder span {
+  display: block;
+
+  max-width: 420px;
+
+  margin-top: 5px;
+
+  color: #505050;
+
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+/* ---------- Context ---------- */
+
+.engineering-context-list {
+  display: grid;
+}
+
+.engineering-context-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 16px 24px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.engineering-context-list div:last-child {
+  border-bottom: none;
+}
+
+.engineering-context-list span {
+  color: #555555;
+
+  font-size: 10px;
+}
+
+.engineering-context-list strong {
+  color: #929292;
+
+  font-size: 10px;
+  font-weight: 400;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .engineering-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .engineering-metric:nth-child(2) {
+    border-right: none;
+  }
+
+  .engineering-metric:nth-child(-n + 2) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .engineering-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .engineering-header {
+    flex-direction: column;
+    align-items: flex-start;
+
+    gap: 30px;
+  }
+
+  .engineering-runtime {
+    align-items: flex-start;
+  }
+
+  .health-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .health-score {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  }
+}
+
+@media (max-width: 480px) {
+  .engineering-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .engineering-metric {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .engineering-metric:last-child {
+    border-bottom: none;
+  }
+
+  .engineering-panel-header {
+    padding: 20px;
+  }
+
+  .health-score {
+    padding: 24px;
+  }
+
+  .health-service {
+    padding: 16px 18px;
+  }
+}

@@ -1,0 +1,881 @@
+/* ---------- Page ---------- */
+
+.azure-foundry-page {
+  width: min(1440px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 56px 0 80px;
+}
+
+/* ---------- Header ---------- */
+
+.azure-foundry-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 48px;
+
+  padding-bottom: 42px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.azure-foundry-header h1 {
+  margin: 0;
+
+  color: #f5f5f5;
+
+  font-size: clamp(38px, 5vw, 64px);
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.azure-foundry-header p {
+  max-width: 680px;
+
+  margin: 20px 0 0;
+
+  color: #858585;
+
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.azure-foundry-header-status {
+  min-width: 180px;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding-bottom: 3px;
+}
+
+.azure-foundry-status-dot {
+  width: 7px;
+  height: 7px;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: #dcdcdc;
+
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.035),
+    0 0 12px rgba(255, 255, 255, 0.2);
+}
+
+.azure-foundry-header-status span:not(.azure-foundry-status-dot) {
+  display: block;
+
+  color: #505050;
+
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.azure-foundry-header-status strong {
+  display: block;
+
+  margin-top: 3px;
+
+  color: #a5a5a5;
+
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* ---------- Overview ---------- */
+
+.azure-foundry-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.azure-overview-card {
+  min-height: 125px;
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 24px;
+
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+
+  box-sizing: border-box;
+}
+
+.azure-overview-card:last-child {
+  border-right: none;
+}
+
+.azure-card-label {
+  color: #505050;
+
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.azure-overview-card strong {
+  margin-top: 17px;
+
+  color: #e5e5e5;
+
+  font-size: 21px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+.azure-overview-card > span:last-child {
+  margin-top: 6px;
+
+  color: #5b5b5b;
+
+  font-size: 10px;
+}
+
+/* ---------- Main Platform Grid ---------- */
+
+.azure-platform-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+
+  margin-top: 42px;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.azure-main-panel {
+  min-width: 0;
+}
+
+.azure-side-panel {
+  min-width: 0;
+
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Panel Heading ---------- */
+
+.azure-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+
+  padding: 27px 30px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.azure-panel-heading h2 {
+  margin: 0;
+
+  color: #e8e8e8;
+
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.azure-panel-count {
+  padding-top: 3px;
+
+  color: #4d4d4d;
+
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+/* ---------- Resources ---------- */
+
+.azure-resource-list {
+  display: grid;
+}
+
+.azure-resource-row {
+  min-height: 86px;
+
+  display: grid;
+  grid-template-columns: 40px minmax(150px, 190px) minmax(0, 1fr) 100px;
+  align-items: center;
+  gap: 16px;
+
+  padding: 18px 30px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+  box-sizing: border-box;
+}
+
+.azure-resource-row:last-child {
+  border-bottom: none;
+}
+
+.azure-resource-icon {
+  width: 34px;
+  height: 34px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+
+  color: #929292;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.azure-resource-info strong {
+  display: block;
+
+  color: #bdbdbd;
+
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.azure-resource-info span {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #505050;
+
+  font-size: 9px;
+}
+
+.azure-resource-description {
+  color: #666666;
+
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.azure-resource-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+
+  color: #727272;
+
+  font-size: 9px;
+}
+
+.azure-resource-status-dot {
+  width: 5px;
+  height: 5px;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: #bcbcbc;
+}
+
+/* ---------- Model ---------- */
+
+.model-card {
+  margin: 24px;
+
+  padding: 18px;
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.model-icon {
+  width: 38px;
+  height: 38px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+
+  color: #9d9d9d;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.model-name {
+  margin-top: 18px;
+}
+
+.model-name span {
+  display: block;
+
+  color: #4f4f4f;
+
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.model-name strong {
+  display: block;
+
+  margin-top: 6px;
+
+  color: #d2d2d2;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.model-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  margin-top: 16px;
+
+  color: #777777;
+
+  font-size: 9px;
+}
+
+.model-details {
+  display: grid;
+
+  padding: 0 24px 24px;
+}
+
+.model-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+
+  padding: 11px 0;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.model-details span {
+  color: #505050;
+
+  font-size: 9px;
+}
+
+.model-details strong {
+  color: #858585;
+
+  font-size: 9px;
+  font-weight: 400;
+  text-align: right;
+}
+
+/* ---------- Runtime ---------- */
+
+.azure-runtime-section {
+  margin-top: 42px;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.azure-runtime-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.runtime-card {
+  min-height: 250px;
+
+  padding: 26px;
+
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+
+  box-sizing: border-box;
+}
+
+.runtime-card:last-child {
+  border-right: none;
+}
+
+.runtime-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.runtime-icon {
+  width: 36px;
+  height: 36px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+
+  color: #909090;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.runtime-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  color: #676767;
+
+  font-size: 9px;
+}
+
+.runtime-status svg {
+  color: #8d8d8d;
+}
+
+.runtime-label {
+  display: block;
+
+  margin-top: 24px;
+
+  color: #4e4e4e;
+
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.runtime-card > strong {
+  display: block;
+
+  margin-top: 8px;
+
+  color: #c2c2c2;
+
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.runtime-card p {
+  min-height: 55px;
+
+  margin: 14px 0 0;
+
+  color: #666666;
+
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.runtime-meta {
+  display: flex;
+  justify-content: space-between;
+
+  margin-top: 24px;
+  padding-top: 14px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.runtime-meta span {
+  color: #4d4d4d;
+
+  font-size: 9px;
+}
+
+.runtime-meta strong {
+  color: #777777;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  font-size: 9px;
+  font-weight: 400;
+}
+
+/* ---------- Inference Pipeline ---------- */
+
+.azure-inference-section {
+  margin-top: 42px;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.inference-flow {
+  min-height: 145px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 30px;
+
+  box-sizing: border-box;
+}
+
+.inference-step {
+  flex: 1;
+
+  min-width: 0;
+
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+
+  gap: 11px;
+}
+
+.inference-number {
+  color: #414141;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  font-size: 9px;
+}
+
+.inference-step-icon {
+  width: 32px;
+  height: 32px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+
+  color: #858585;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.inference-step strong {
+  display: block;
+
+  color: #a9a9a9;
+
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.inference-step span:last-child {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #535353;
+
+  font-size: 8px;
+}
+
+.inference-line {
+  width: 42px;
+  height: 1px;
+
+  flex-shrink: 0;
+
+  margin: 0 16px;
+
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ---------- Information ---------- */
+
+.azure-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  margin-top: 42px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.azure-info-card {
+  min-height: 190px;
+
+  padding: 26px;
+
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.azure-info-card:last-child {
+  border-right: none;
+}
+
+.azure-info-card h3 {
+  margin: 18px 0 0;
+
+  color: #bdbdbd;
+
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.azure-info-card p {
+  max-width: 360px;
+
+  margin: 10px 0 0;
+
+  color: #606060;
+
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+/* ---------- Actions ---------- */
+
+.azure-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 30px;
+
+  margin-top: 42px;
+  padding: 24px 0;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.azure-actions h2 {
+  margin: 0;
+
+  color: #bdbdbd;
+
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.azure-external-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  padding: 10px 15px;
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+
+  background: rgba(255, 255, 255, 0.05);
+
+  color: #bcbcbc;
+
+  font-family: inherit;
+  font-size: 10px;
+
+  cursor: pointer;
+
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.azure-external-button:hover {
+  color: #ededed;
+
+  background: rgba(255, 255, 255, 0.08);
+
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1150px) {
+  .azure-foundry-page {
+    width: min(100% - 40px, 1000px);
+  }
+
+  .azure-platform-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .azure-side-panel {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: none;
+  }
+
+  .azure-resource-row {
+    grid-template-columns: 40px 180px minmax(0, 1fr) 100px;
+  }
+
+  .inference-flow {
+    flex-wrap: wrap;
+
+    gap: 20px;
+  }
+
+  .inference-step {
+    flex: 1 1 calc(50% - 20px);
+  }
+
+  .inference-line {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .azure-foundry-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .azure-foundry-header-status {
+    width: 100%;
+  }
+
+  .azure-foundry-overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .azure-overview-card:nth-child(2) {
+    border-right: none;
+  }
+
+  .azure-overview-card:nth-child(-n + 2) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .azure-runtime-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .runtime-card {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .runtime-card:last-child {
+    border-bottom: none;
+  }
+
+  .azure-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .azure-info-card {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .azure-info-card:last-child {
+    border-bottom: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .azure-foundry-page {
+    width: calc(100% - 32px);
+
+    padding-top: 38px;
+  }
+
+  .azure-foundry-header {
+    gap: 32px;
+
+    padding-bottom: 32px;
+  }
+
+  .azure-foundry-header h1 {
+    font-size: 42px;
+  }
+
+  .azure-resource-row {
+    grid-template-columns: 40px 1fr auto;
+
+    gap: 12px;
+
+    padding: 18px 20px;
+  }
+
+  .azure-resource-description {
+    display: none;
+  }
+
+  .azure-panel-heading {
+    padding: 24px 20px;
+  }
+
+  .model-card {
+    margin: 20px;
+  }
+
+  .model-details {
+    padding: 0 20px 20px;
+  }
+
+  .inference-flow {
+    flex-direction: column;
+    align-items: stretch;
+
+    padding: 24px 20px;
+  }
+
+  .inference-step {
+    flex: none;
+
+    grid-template-columns: auto auto 1fr;
+  }
+
+  .azure-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .azure-foundry-page {
+    width: calc(100% - 24px);
+  }
+
+  .azure-foundry-header h1 {
+    font-size: 36px;
+  }
+
+  .azure-foundry-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .azure-overview-card {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .azure-overview-card:last-child {
+    border-bottom: none;
+  }
+
+  .azure-resource-row {
+    grid-template-columns: 34px 1fr;
+  }
+
+  .azure-resource-status {
+    grid-column: 2;
+
+    justify-content: flex-start;
+  }
+
+  .runtime-card {
+    padding: 22px 20px;
+  }
+
+  .azure-info-card {
+    padding: 22px 20px;
+  }
+
+  .azure-external-button {
+    width: 100%;
+
+    justify-content: center;
+  }
+}

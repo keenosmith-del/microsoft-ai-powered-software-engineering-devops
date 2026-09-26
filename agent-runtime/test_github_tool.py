@@ -2,29 +2,43 @@ from tools.github_tool import GitHubTool
 
 
 def main():
-    github = GitHubTool()
 
-    snapshot = github.get_repository_snapshot()
+    github = GitHubTool()
 
     print("\n=== GITHUB REPOSITORY SNAPSHOT ===\n")
 
-    repository = snapshot["repository"]
-    branch = snapshot["branch"]
+    snapshot = github.get_repository_snapshot()
 
-    print(f"Repository: {repository['full_name']}")
-    print(f"Default branch: {repository['default_branch']}")
-    print(f"Language: {repository['language']}")
-    print(f"Private: {repository['private']}")
-    print(f"Branch: {branch['name']}")
-    print(f"Branch SHA: {branch['sha']}")
+    print(f"Repository: {snapshot['repository']['full_name']}")
+    print(
+        f"Default branch: "
+        f"{snapshot['repository']['default_branch']}"
+    )
+    print(f"Language: {snapshot['repository']['language']}")
+    print(f"Private: {snapshot['repository']['private']}")
 
-    print("\nRecent commits:\n")
+    print(f"\nBranch: {snapshot['branch']['name']}")
+    print(f"Branch SHA: {snapshot['branch']['sha']}")
+
+    print("\nRecent commits:")
 
     for commit in snapshot["recent_commits"]:
-        print(f"{commit['sha'][:7]} - {commit['message']}")
-        print(f"Author: {commit['author']}")
-        print(f"Date: {commit['date']}")
-        print()
+        print(
+            f"\n{commit['sha'][:7]} - "
+            f"{commit['message']}\n"
+            f"Author: {commit['author']}\n"
+            f"Date: {commit['date']}"
+        )
+
+    print("\n=== REPOSITORY TREE ===\n")
+
+    tree = github.get_repository_tree()
+
+    for item in tree:
+        print(
+            f"{item.get('type', 'unknown'):4} "
+            f"{item.get('path', '')}"
+        )
 
 
 if __name__ == "__main__":

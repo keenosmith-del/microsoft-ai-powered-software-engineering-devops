@@ -1,0 +1,6 @@
+azure-identity
+azure-mgmt-cognitiveservices
+azure-mgmt-resource
+python-dotenv
+openai
+requests

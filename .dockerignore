@@ -1,0 +1,10 @@
+node_modules
+.env
+.git
+.gitignore
+.DS_Store
+frontend
+agent-runtime
+agents
+backend
+README.md
