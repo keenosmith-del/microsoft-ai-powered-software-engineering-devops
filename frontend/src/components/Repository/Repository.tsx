@@ -1,6 +1,39 @@
+import { useEffect, useState } from 'react'
+import {
+  getRepository,
+  type RepositoryData,
+} from '../../services/api'
+
 import './Repository.css'
 
 function Repository() {
+  const [repository, setRepository] = useState<RepositoryData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function loadRepository() {
+      try {
+        const data = await getRepository()
+        setRepository(data)
+      } catch (error) {
+        console.error(
+          'Failed to load repository:',
+          error,
+        )
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to load repository',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadRepository()
+  }, [])
   return (
     <main className="repository-page">
       <section className="repository-header">
@@ -25,20 +58,33 @@ function Repository() {
       <section className="repository-overview">
         <article className="repository-metric">
           <span className="repository-metric-label">REPOSITORY</span>
-          <strong>ai-engineering-operations</strong>
+          <strong>
+            {loading
+              ? 'Loading...'
+              : repository?.repository.name || 'Unavailable'}
+          </strong>
+
           <span>GitHub repository</span>
         </article>
 
         <article className="repository-metric">
           <span className="repository-metric-label">BRANCH</span>
-          <strong>main</strong>
-          <span>Current working branch</span>
+          <strong>
+            {loading
+              ? 'Loading...'
+              : repository?.branch.name || 'Unavailable'}
+          </strong>
+
+          <span>Current repository branch</span>
         </article>
 
         <article className="repository-metric">
           <span className="repository-metric-label">STATUS</span>
-          <strong>Clean</strong>
-          <span>No uncommitted changes</span>
+          <strong>
+            {loading ? 'Loading...' : 'Tracked'}
+          </strong>
+
+          <span>Remote repository state available</span>
         </article>
 
         <article className="repository-metric">
@@ -61,69 +107,62 @@ function Repository() {
             </div>
 
             <div className="commit-list">
-              <article className="commit-row">
-                <div className="commit-index">01</div>
-
-                <div className="commit-content">
-                  <strong>Implement repository intelligence UI</strong>
-
-                  <div className="commit-meta">
-                    <span>main</span>
-                    <span>·</span>
-                    <span>Recent commit</span>
+              {loading && (
+                <div className="change-empty">
+                  <div>
+                    <h3>Loading repository history...</h3>
+                    <p>
+                      Retrieving recent commits from GitHub.
+                    </p>
                   </div>
                 </div>
+              )}
 
-                <code>8f31c2a</code>
-              </article>
-
-              <article className="commit-row">
-                <div className="commit-index">02</div>
-
-                <div className="commit-content">
-                  <strong>Add engineering operations dashboard</strong>
-
-                  <div className="commit-meta">
-                    <span>main</span>
-                    <span>·</span>
-                    <span>Previous commit</span>
+              {error && (
+                <div className="change-empty">
+                  <div>
+                    <h3>Repository unavailable</h3>
+                    <p>{error}</p>
                   </div>
                 </div>
+              )}
 
-                <code>52a91de</code>
-              </article>
+              {!loading &&
+                !error &&
+                repository?.recent_commits.map((commit, index) => (
+                  <article
+                    className="commit-row"
+                    key={commit.sha}
+                  >
+                    <div className="commit-index">
+                      {String(index + 1).padStart(2, '0')}
+                    </div>
 
-              <article className="commit-row">
-                <div className="commit-index">03</div>
+                    <div className="commit-content">
+                      <strong>
+                        {commit.message.split('\n')[0]}
+                      </strong>
 
-                <div className="commit-content">
-                  <strong>Configure agent runtime integration</strong>
+                      <div className="commit-meta">
+                        <span>
+                          {repository.branch.name}
+                        </span>
 
-                  <div className="commit-meta">
-                    <span>main</span>
-                    <span>·</span>
-                    <span>Previous commit</span>
-                  </div>
-                </div>
+                        <span>·</span>
 
-                <code>31d7b84</code>
-              </article>
+                        <span>
+                          {commit.date
+                            ? new Date(commit.date).toLocaleString()
+                            : 'Unknown date'}
+                        </span>
+                      </div>
+                    </div>
 
-              <article className="commit-row">
-                <div className="commit-index">04</div>
-
-                <div className="commit-content">
-                  <strong>Establish project foundation</strong>
-
-                  <div className="commit-meta">
-                    <span>main</span>
-                    <span>·</span>
-                    <span>Previous commit</span>
-                  </div>
-                </div>
-
-                <code>19c4e72</code>
-              </article>
+                    <code>
+                      {commit.sha.substring(0, 7)}
+                    </code>
+                  </article>
+                ))}
             </div>
           </section>
 

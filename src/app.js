@@ -2,8 +2,14 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const connectDatabase = require('./config/database');
 
 const app = express();
+
+const incidentRoutes = require('./routes/incidents');
+const Incident = require('./models/Incident');
+
+const repositoryRoutes = require('./routes/repository');
 
 const PORT = process.env.PORT || 5050;
 const AGENT_RUNTIME_URL =
@@ -11,6 +17,9 @@ const AGENT_RUNTIME_URL =
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/api/incidents', incidentRoutes);
+app.use('/api/repository', repositoryRoutes);
 
 app.get('/health', (req, res) => {
     res.json({
@@ -56,9 +65,26 @@ app.post('/api/analyse', async (req, res) => {
             });
         }
 
-        res.json(data);
+        const incident = await Incident.create({
+            title: problem.length > 80
+                ? `${problem.substring(0, 77)}...`
+                : problem,
+            description: problem,
+            service: 'Engineering Operations API',
+            severity: 'High',
+            status: 'Investigating',
+            analysis: data.analysis || '',
+            investigation: data.investigation || '',
+            actions: data.actions || '',
+            rootCause: 'Pending investigation',
+        });
+
+        res.json({
+            ...data,
+            incidentId: incident._id,
+        });
     } catch (error) {
-        console.error('Agent runtime request failed:', error);
+        console.error('Analysis or incident persistence failed:', error);
 
         res.status(502).json({
             success: false,
@@ -67,6 +93,12 @@ app.post('/api/analyse', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`AI Engineering Operations API running on port ${PORT}`);
-});
+async function startServer() {
+    await connectDatabase();
+
+    app.listen(PORT, () => {
+        console.log(`AI Engineering Operations API running on port ${PORT}`);
+    });
+}
+
+startServer();

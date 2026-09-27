@@ -1,73 +1,59 @@
+import { useEffect, useState } from 'react'
+
+import {
+  getIncidents,
+  type Incident,
+} from '../../services/api'
+
 import './Incidents.css'
-
-type IncidentStatus =
-  | 'Investigating'
-  | 'Resolved'
-  | 'Awaiting review'
-
-type IncidentSeverity =
-  | 'Critical'
-  | 'High'
-  | 'Medium'
-
-type Incident = {
-  id: string
-  title: string
-  service: string
-  severity: IncidentSeverity
-  status: IncidentStatus
-  detected: string
-  rootCause: string
-}
 
 type IncidentsProps = {
   onNewInvestigation: () => void
-  onSelectIncident: (incidentDescription: string) => void
+  onSelectIncident: (incidentId: string) => void
 }
-
-const incidents: Incident[] = [
-  {
-    id: 'INC-0042',
-    title: 'API request failures after deployment',
-    service: 'Engineering Operations API',
-    severity: 'High',
-    status: 'Investigating',
-    detected: '12 min ago',
-    rootCause: 'Pending investigation',
-  },
-  {
-    id: 'INC-0041',
-    title: 'Elevated response latency',
-    service: 'Application Gateway',
-    severity: 'Medium',
-    status: 'Awaiting review',
-    detected: '2 hours ago',
-    rootCause: 'Configuration change',
-  },
-  {
-    id: 'INC-0040',
-    title: 'Agent runtime unavailable',
-    service: 'AI Agent Runtime',
-    severity: 'Critical',
-    status: 'Resolved',
-    detected: 'Yesterday',
-    rootCause: 'Runtime process failure',
-  },
-  {
-    id: 'INC-0039',
-    title: 'Repository analysis timeout',
-    service: 'Software Engineering Agent',
-    severity: 'Medium',
-    status: 'Resolved',
-    detected: 'Yesterday',
-    rootCause: 'Repository request timeout',
-  },
-]
 
 function Incidents({
   onNewInvestigation,
   onSelectIncident,
 }: IncidentsProps) {
+
+  const [incidents, setIncidents] = useState<Incident[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function loadIncidents() {
+      try {
+        const data = await getIncidents()
+        setIncidents(data)
+      } catch (error) {
+        console.error('Failed to load incidents:', error)
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to load incidents',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadIncidents()
+  }, [])
+
+  const activeCount = incidents.filter(
+    (incident) => incident.status === 'Investigating',
+  ).length
+
+  const awaitingReviewCount = incidents.filter(
+    (incident) => incident.status === 'Awaiting review',
+  ).length
+
+  const resolvedCount = incidents.filter(
+    (incident) => incident.status === 'Resolved',
+  ).length
+
   return (
     <main className="incidents-page">
 
@@ -100,7 +86,7 @@ function Incidents({
 
         <article className="incident-summary-card">
           <span>ACTIVE</span>
-          <strong>1</strong>
+          <strong>{activeCount}</strong>
           <small>
             Incident currently being investigated
           </small>
@@ -108,7 +94,7 @@ function Incidents({
 
         <article className="incident-summary-card">
           <span>AWAITING REVIEW</span>
-          <strong>1</strong>
+          <strong>{awaitingReviewCount}</strong>
           <small>
             Investigations requiring engineering review
           </small>
@@ -116,7 +102,7 @@ function Incidents({
 
         <article className="incident-summary-card">
           <span>RESOLVED</span>
-          <strong>2</strong>
+          <strong>{resolvedCount}</strong>
           <small>
             Incidents resolved
           </small>
@@ -124,7 +110,7 @@ function Incidents({
 
         <article className="incident-summary-card">
           <span>TOTAL</span>
-          <strong>4</strong>
+          <strong>{incidents.length}</strong>
           <small>
             Recorded engineering incidents
           </small>
@@ -162,70 +148,80 @@ function Incidents({
             <span>DETECTED</span>
           </div>
 
-          {incidents.map((incident) => (
-            <button
-              key={incident.id}
-              type="button"
-              className="incident-row"
-              onClick={() =>
-                onSelectIncident(
-                  `${incident.title}. Service: ${incident.service}. Severity: ${incident.severity}. Status: ${incident.status}. Root cause: ${incident.rootCause}.`,
-                )
-              }
-            >
+          {loading && (
+            <div className="incident-row">
+              Loading incidents...
+            </div>
+          )}
 
-              <div className="incident-title">
+          {error && (
+            <div className="incident-row">
+              {error}
+            </div>
+          )}
 
-                <span className="incident-id">
-                  {incident.id}
-                </span>
+          {!loading &&
+            !error &&
+            incidents.map((incident) => (
+              <button
+                key={incident._id}
+                type="button"
+                className="incident-row"
+                onClick={() => onSelectIncident(incident._id)}
+              >
 
-                <strong>
-                  {incident.title}
-                </strong>
+                <div className="incident-title">
 
-                <small>
-                  {incident.rootCause}
-                </small>
+                  <span className="incident-id">
+                    {incident._id}
+                  </span>
 
-              </div>
+                  <strong>
+                    {incident.title}
+                  </strong>
 
-              <div className="incident-service">
-                {incident.service}
-              </div>
+                  <small>
+                    {incident.rootCause}
+                  </small>
 
-              <div>
+                </div>
 
-                <span
-                  className={`severity severity-${incident.severity
-                    .toLowerCase()
-                    .replace(' ', '-')}`}
-                >
-                  {incident.severity}
-                </span>
+                <div className="incident-service">
+                  {incident.service}
+                </div>
 
-              </div>
+                <div>
 
-              <div>
+                  <span
+                    className={`severity severity-${incident.severity
+                      .toLowerCase()
+                      .replace(' ', '-')}`}
+                  >
+                    {incident.severity}
+                  </span>
 
-                <span
-                  className={`incident-status status-${incident.status
-                    .toLowerCase()
-                    .replace(' ', '-')}`}
-                >
-                  <span className="status-indicator" />
+                </div>
 
-                  {incident.status}
-                </span>
+                <div>
 
-              </div>
+                  <span
+                    className={`incident-status status-${incident.status
+                      .toLowerCase()
+                      .replace(' ', '-')}`}
+                  >
+                    <span className="status-indicator" />
 
-              <div className="incident-detected">
-                {incident.detected}
-              </div>
+                    {incident.status}
+                  </span>
 
-            </button>
-          ))}
+                </div>
+
+                <div className="incident-detected">
+                  {new Date(incident.createdAt).toLocaleString()}
+                </div>
+
+              </button>
+            ))}
 
         </div>
 

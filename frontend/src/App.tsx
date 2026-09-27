@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   analyseIncident,
+  getIncident,
   type InvestigationResponse,
 } from './services/api'
 
@@ -16,11 +17,47 @@ import './App.css'
 
 type AgentStatus = 'ready' | 'running' | 'complete'
 
+type AgentExecutionStatus =
+  | 'idle'
+  | 'running'
+  | 'complete'
+  | 'error'
+
+type AgentExecution = {
+  id: string
+  name: string
+  description: string
+  status: AgentExecutionStatus
+}
+
 function App() {
   const [activeView, setActiveView] = useState('overview')
   const [incident, setIncident] = useState('')
   const [agentStatus, setAgentStatus] =
     useState<AgentStatus>('ready')
+
+  const [agentExecution, setAgentExecution] = useState<
+    AgentExecution[]
+  >([
+    {
+      id: 'software-engineering',
+      name: 'Software Engineering',
+      description: 'Code & architecture analysis',
+      status: 'idle',
+    },
+    {
+      id: 'incident-investigation',
+      name: 'Incident Investigation',
+      description: 'Evidence & root-cause analysis',
+      status: 'idle',
+    },
+    {
+      id: 'engineering-action',
+      name: 'Engineering Action',
+      description: 'Recommended remediation',
+      status: 'idle',
+    },
+  ])
 
   const [investigationResult, setInvestigationResult] =
     useState<InvestigationResponse | null>(null)
@@ -37,13 +74,65 @@ function App() {
     setInvestigationResult(null)
     setInvestigationError('')
 
+    setAgentExecution([
+      {
+        id: 'software-engineering',
+        name: 'Software Engineering',
+        description: 'Code & architecture analysis',
+        status: 'running',
+      },
+      {
+        id: 'incident-investigation',
+        name: 'Incident Investigation',
+        description: 'Evidence & root-cause analysis',
+        status: 'idle',
+      },
+      {
+        id: 'engineering-action',
+        name: 'Engineering Action',
+        description: 'Recommended remediation',
+        status: 'idle',
+      },
+    ])
+
     try {
       const result = await analyseIncident(incident)
+
+      setAgentExecution([
+        {
+          id: 'software-engineering',
+          name: 'Software Engineering',
+          description: 'Code & architecture analysis',
+          status: 'complete',
+        },
+        {
+          id: 'incident-investigation',
+          name: 'Incident Investigation',
+          description: 'Evidence & root-cause analysis',
+          status: 'complete',
+        },
+        {
+          id: 'engineering-action',
+          name: 'Engineering Action',
+          description: 'Recommended remediation',
+          status: 'complete',
+        },
+      ])
 
       setInvestigationResult(result)
       setAgentStatus('complete')
     } catch (error) {
       console.error('Investigation failed:', error)
+
+      setAgentExecution((current) =>
+        current.map((agent) => ({
+          ...agent,
+          status:
+            agent.status === 'running'
+              ? 'error'
+              : agent.status,
+        })),
+      )
 
       setInvestigationError(
         error instanceof Error
@@ -55,20 +144,86 @@ function App() {
     }
   }
 
+  const handleClearOutput = () => {
+    setInvestigationResult(null)
+    setInvestigationError('')
+    setAgentStatus('ready')
+
+    setAgentExecution((current) =>
+      current.map((agent) => ({
+        ...agent,
+        status: 'idle',
+      })),
+    )
+  }
+
   const handleNewInvestigation = () => {
     setIncident('')
     setInvestigationResult(null)
     setInvestigationError('')
     setAgentStatus('ready')
+
+    setAgentExecution((current) =>
+      current.map((agent) => ({
+        ...agent,
+        status: 'idle',
+      })),
+    )
+
     setActiveView('overview')
   }
 
-  const handleSelectIncident = (incidentDescription: string) => {
-    setIncident(incidentDescription)
-    setInvestigationResult(null)
+  const handleSelectIncident = async (incidentId: string) => {
     setInvestigationError('')
-    setAgentStatus('ready')
+    setInvestigationResult(null)
+    setAgentStatus('running')
     setActiveView('overview')
+
+    setAgentExecution([
+      {
+        id: 'software-engineering',
+        name: 'Software Engineering',
+        description: 'Code & architecture analysis',
+        status: 'complete',
+      },
+      {
+        id: 'incident-investigation',
+        name: 'Incident Investigation',
+        description: 'Evidence & root-cause analysis',
+        status: 'complete',
+      },
+      {
+        id: 'engineering-action',
+        name: 'Engineering Action',
+        description: 'Recommended remediation',
+        status: 'complete',
+      },
+    ])
+
+    try {
+      const selectedIncident = await getIncident(incidentId)
+
+      setIncident(selectedIncident.description)
+
+      setInvestigationResult({
+        success: true,
+        analysis: selectedIncident.analysis,
+        investigation: selectedIncident.investigation,
+        actions: selectedIncident.actions,
+      })
+
+      setAgentStatus('complete')
+    } catch (error) {
+      console.error('Failed to load incident:', error)
+
+      setInvestigationError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load incident',
+      )
+
+      setAgentStatus('ready')
+    }
   }
 
   return (
@@ -302,95 +457,105 @@ function App() {
 
                     {!investigationError &&
                       investigationResult && (
-                        <div className="investigation-result">
+                        <>
+                          <div className="investigation-result-actions">
+                            <button
+                              type="button"
+                              onClick={handleClearOutput}
+                            >
+                              Clear Output
+                            </button>
+                          </div>
 
-                          <section className="result-section">
+                          <div className="investigation-result">
 
-                            <div className="result-section-header">
+                            <section className="result-section">
 
-                              <span className="result-index">
-                                01
-                              </span>
+                              <div className="result-section-header">
 
-                              <div>
-                                <span className="eyebrow">
-                                  ANALYSIS
+                                <span className="result-index">
+                                  01
                                 </span>
 
-                                <h3>
-                                  Engineering Analysis
-                                </h3>
+                                <div>
+                                  <span className="eyebrow">
+                                    ANALYSIS
+                                  </span>
+
+                                  <h3>
+                                    Engineering Analysis
+                                  </h3>
+                                </div>
+
                               </div>
 
-                            </div>
+                              <div className="result-content">
+                                <pre>
+                                  {investigationResult.analysis}
+                                </pre>
+                              </div>
 
-                            <div className="result-content">
-                              <pre>
-                                {investigationResult.analysis}
-                              </pre>
-                            </div>
+                            </section>
 
-                          </section>
+                            <section className="result-section">
 
-                          <section className="result-section">
+                              <div className="result-section-header">
 
-                            <div className="result-section-header">
-
-                              <span className="result-index">
-                                02
-                              </span>
-
-                              <div>
-                                <span className="eyebrow">
-                                  INVESTIGATION
+                                <span className="result-index">
+                                  02
                                 </span>
 
-                                <h3>
-                                  Evidence &amp; Investigation
-                                </h3>
+                                <div>
+                                  <span className="eyebrow">
+                                    INVESTIGATION
+                                  </span>
+
+                                  <h3>
+                                    Evidence &amp; Investigation
+                                  </h3>
+                                </div>
+
                               </div>
 
-                            </div>
+                              <div className="result-content">
+                                <pre>
+                                  {investigationResult.investigation}
+                                </pre>
+                              </div>
 
-                            <div className="result-content">
-                              <pre>
-                                {investigationResult.investigation}
-                              </pre>
-                            </div>
+                            </section>
 
-                          </section>
+                            <section className="result-section">
 
-                          <section className="result-section">
+                              <div className="result-section-header">
 
-                            <div className="result-section-header">
-
-                              <span className="result-index">
-                                03
-                              </span>
-
-                              <div>
-                                <span className="eyebrow">
-                                  ENGINEERING ACTION
+                                <span className="result-index">
+                                  03
                                 </span>
 
-                                <h3>
-                                  Recommended Actions
-                                </h3>
+                                <div>
+                                  <span className="eyebrow">
+                                    ENGINEERING ACTION
+                                  </span>
+
+                                  <h3>
+                                    Recommended Actions
+                                  </h3>
+                                </div>
+
                               </div>
 
-                            </div>
+                              <div className="result-content">
+                                <pre>
+                                  {investigationResult.actions}
+                                </pre>
+                              </div>
 
-                            <div className="result-content">
-                              <pre>
-                                {investigationResult.actions}
-                              </pre>
-                            </div>
+                            </section>
 
-                          </section>
-
-                        </div>
+                          </div>
+                        </>
                       )}
-
                   </div>
                 </div>
 
@@ -408,47 +573,31 @@ function App() {
 
                   <div className="agent-list">
 
-                    <div className="agent-row">
-                      <div className="agent-index">01</div>
+                    {agentExecution.map((agent, index) => (
+                      <div
+                        className={`agent-row agent-${agent.status}`}
+                        key={agent.id}
+                      >
+                        <div className="agent-index">
+                          {String(index + 1).padStart(2, '0')}
+                        </div>
 
-                      <div>
-                        <strong>
-                          Software Engineering
-                        </strong>
+                        <div>
+                          <strong>{agent.name}</strong>
 
-                        <span>
-                          Code &amp; architecture analysis
-                        </span>
+                          <span>
+                            {agent.description}
+                          </span>
+                        </div>
+
+                        <div className="agent-runtime-status">
+                          {agent.status === 'idle' && 'Idle'}
+                          {agent.status === 'running' && 'Running'}
+                          {agent.status === 'complete' && 'Complete'}
+                          {agent.status === 'error' && 'Error'}
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="agent-row">
-                      <div className="agent-index">02</div>
-
-                      <div>
-                        <strong>
-                          Incident Investigation
-                        </strong>
-
-                        <span>
-                          Evidence &amp; root-cause analysis
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="agent-row">
-                      <div className="agent-index">03</div>
-
-                      <div>
-                        <strong>
-                          Engineering Action
-                        </strong>
-
-                        <span>
-                          Recommended remediation
-                        </span>
-                      </div>
-                    </div>
+                    ))}
 
                   </div>
                 </section>

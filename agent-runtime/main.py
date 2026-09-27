@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from agents.software_engineering_agent import SoftwareEngineeringAgent
 from agents.incident_investigation_agent import IncidentInvestigationAgent
 from agents.engineering_action_agent import EngineeringActionAgent
+from tools.github_tool import GitHubTool
 
 
 app = FastAPI(
@@ -25,6 +26,32 @@ def health():
         "status": "ok",
         "service": "ai-engineering-operations-agent-runtime",
     }
+
+
+@app.get("/repository")
+def repository():
+    try:
+        github = GitHubTool()
+
+        snapshot = github.get_repository_snapshot()
+
+        return {
+            "success": True,
+            "repository": snapshot["repository"],
+            "branch": snapshot["branch"],
+            "recent_commits": snapshot["recent_commits"],
+        }
+
+    except Exception as error:
+        print(
+            f"Repository runtime failed: {error}",
+            file=sys.stderr,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve repository data",
+        )
 
 
 @app.post("/analyse")
