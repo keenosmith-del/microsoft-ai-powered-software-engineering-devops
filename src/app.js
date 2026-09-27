@@ -31,37 +31,27 @@ app.get('/health', (req, res) => {
 
 app.post('/api/analyse', async (req, res) => {
     try {
-        const { problem } = req.body;
+        const {
+            problem,
+            severity = 'Medium',
+        } = req.body;
+
+        const allowedSeverities = [
+            'Critical',
+            'High',
+            'Medium',
+            'Low',
+        ];
+
+        if (!allowedSeverities.includes(severity)) {
+            return res.status(400).json({
+                error: 'severity must be Critical, High, Medium, or Low',
+            });
+        }
 
         if (!problem || typeof problem !== 'string') {
             return res.status(400).json({
                 error: 'problem is required and must be a string',
-            });
-        }
-
-        const response = await fetch(`${AGENT_RUNTIME_URL}/analyse`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                problem,
-            }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error(
-                'Agent runtime returned an error:',
-                response.status,
-                data
-            );
-
-            return res.status(502).json({
-                success: false,
-                error: 'Agent runtime request failed',
-                detail: data.detail || data.error || 'Unknown runtime error',
             });
         }
 
@@ -71,24 +61,81 @@ app.post('/api/analyse', async (req, res) => {
                 : problem,
             description: problem,
             service: 'Engineering Operations API',
-            severity: 'High',
+            severity,
             status: 'Investigating',
-            analysis: data.analysis || '',
-            investigation: data.investigation || '',
-            actions: data.actions || '',
+            analysis: '',
+            investigation: '',
+            actions: '',
             rootCause: 'Pending investigation',
         });
 
-        res.json({
-            ...data,
-            incidentId: incident._id,
-        });
+        try {
+            const response = await fetch(
+                `${AGENT_RUNTIME_URL}/analyse`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        problem,
+                    }),
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.error(
+                    'Agent runtime returned an error:',
+                    response.status,
+                    data
+                );
+
+                return res.status(502).json({
+                    success: false,
+                    error: 'Agent runtime request failed',
+                    detail:
+                        data.detail ||
+                        data.error ||
+                        'Unknown runtime error',
+                    incidentId: incident._id,
+                });
+            }
+
+            incident.analysis = data.analysis || '';
+            incident.investigation = data.investigation || '';
+            incident.actions = data.actions || '';
+
+            incident.status = 'Open';
+
+            await incident.save();
+
+            res.json({
+                ...data,
+                incidentId: incident._id,
+            });
+        } catch (error) {
+            console.error(
+                'Agent runtime request failed:',
+                error
+            );
+
+            return res.status(502).json({
+                success: false,
+                error: 'Agent runtime unavailable',
+                incidentId: incident._id,
+            });
+        }
     } catch (error) {
-        console.error('Analysis or incident persistence failed:', error);
+        console.error(
+            'Analysis or incident persistence failed:',
+            error
+        );
 
         res.status(502).json({
             success: false,
-            error: 'Agent runtime unavailable',
+            error: 'Failed to create investigation',
         });
     }
 });

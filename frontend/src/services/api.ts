@@ -5,10 +5,12 @@ export type InvestigationResponse = {
   analysis: string
   investigation: string
   actions: string
+  incidentId?: string
 }
 
 export async function analyseIncident(
   problem: string,
+  severity: Incident['severity'] = 'Medium',
 ): Promise<InvestigationResponse> {
   const response = await fetch(`${API_BASE_URL}/api/analyse`, {
     method: 'POST',
@@ -17,6 +19,7 @@ export async function analyseIncident(
     },
     body: JSON.stringify({
       problem,
+      severity,
     }),
   })
 
@@ -38,8 +41,8 @@ export type Incident = {
   title: string
   description: string
   service: string
-  severity: 'Critical' | 'High' | 'Medium'
-  status: 'Investigating' | 'Resolved' | 'Awaiting review'
+  severity: 'Critical' | 'High' | 'Medium' | 'Low'
+  status: 'Investigating' | 'Open' | 'Awaiting review' | 'Resolved'
   analysis: string
   investigation: string
   actions: string
@@ -62,6 +65,36 @@ export async function getIncidents(): Promise<Incident[]> {
   }
 
   return data as Incident[]
+}
+
+export async function updateIncidentStatus(
+  id: string,
+  status: Incident['status'],
+): Promise<Incident> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/incidents/${id}/status`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        status,
+      }),
+    },
+  )
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.error ||
+      'Failed to update incident status',
+    )
+  }
+
+  return data as Incident
 }
 
 export async function getIncident(

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import {
   getIncidents,
+  updateIncidentStatus,
   type Incident,
 } from '../../services/api'
 
@@ -20,6 +21,11 @@ function Incidents({
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const [updatingIncidentId, setUpdatingIncidentId] =
+    useState<string | null>(null)
+
+  const [statusError, setStatusError] = useState('')
 
   useEffect(() => {
     async function loadIncidents() {
@@ -42,8 +48,46 @@ function Incidents({
     loadIncidents()
   }, [])
 
+  const handleStatusChange = async (
+    incidentId: string,
+    status: Incident['status'],
+  ) => {
+    setUpdatingIncidentId(incidentId)
+    setStatusError('')
+
+    try {
+      const updatedIncident = await updateIncidentStatus(
+        incidentId,
+        status,
+      )
+
+      setIncidents((currentIncidents) =>
+        currentIncidents.map((incident) =>
+          incident._id === incidentId
+            ? updatedIncident
+            : incident,
+        ),
+      )
+    } catch (error) {
+      console.error(
+        'Failed to update incident status:',
+        error,
+      )
+
+      setStatusError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update incident status',
+      )
+    } finally {
+      setUpdatingIncidentId(null)
+    }
+  }
+
   const activeCount = incidents.filter(
-    (incident) => incident.status === 'Investigating',
+    (incident) =>
+      incident.status === 'Investigating' ||
+      incident.status === 'Open',
   ).length
 
   const awaitingReviewCount = incidents.filter(
@@ -53,6 +97,32 @@ function Incidents({
   const resolvedCount = incidents.filter(
     (incident) => incident.status === 'Resolved',
   ).length
+
+  const getIncidentContext = (incident: Incident) => {
+    if (incident.status === 'Investigating') {
+      return 'Active investigation'
+    }
+
+    if (incident.status === 'Open') {
+      return incident.rootCause !== 'Pending investigation'
+        ? incident.rootCause
+        : 'Investigation complete'
+    }
+
+    if (incident.status === 'Awaiting review') {
+      return incident.rootCause !== 'Pending investigation'
+        ? incident.rootCause
+        : 'Awaiting engineering review'
+    }
+
+    if (incident.status === 'Resolved') {
+      return incident.rootCause !== 'Pending investigation'
+        ? incident.rootCause
+        : 'Investigation resolved'
+    }
+
+    return incident.rootCause
+  }
 
   return (
     <main className="incidents-page">
@@ -138,6 +208,12 @@ function Incidents({
 
         </div>
 
+        {statusError && (
+          <div className="incident-status-error">
+            {statusError}
+          </div>
+        )}
+
         <div className="incident-table">
 
           <div className="incident-table-header">
@@ -146,6 +222,7 @@ function Incidents({
             <span>SEVERITY</span>
             <span>STATUS</span>
             <span>DETECTED</span>
+            <span>ACTION</span>
           </div>
 
           {loading && (
@@ -163,15 +240,16 @@ function Incidents({
           {!loading &&
             !error &&
             incidents.map((incident) => (
-              <button
+              <div
                 key={incident._id}
-                type="button"
                 className="incident-row"
-                onClick={() => onSelectIncident(incident._id)}
               >
 
-                <div className="incident-title">
-
+                <button
+                  type="button"
+                  className="incident-title"
+                  onClick={() => onSelectIncident(incident._id)}
+                >
                   <span className="incident-id">
                     {incident._id}
                   </span>
@@ -181,10 +259,9 @@ function Incidents({
                   </strong>
 
                   <small>
-                    {incident.rootCause}
+                    {getIncidentContext(incident)}
                   </small>
-
-                </div>
+                </button>
 
                 <div className="incident-service">
                   {incident.service}
@@ -220,7 +297,64 @@ function Incidents({
                   {new Date(incident.createdAt).toLocaleString()}
                 </div>
 
-              </button>
+                <div className="incident-action">
+                  {updatingIncidentId === incident._id ? (
+                    <span>Updating...</span>
+                  ) : incident.status === 'Investigating' ||
+                    incident.status === 'Open' ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleStatusChange(
+                          incident._id,
+                          'Awaiting review',
+                        )
+                      }
+                    >
+                      Mark Awaiting Review
+                    </button>
+                  ) : incident.status === 'Awaiting review' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleStatusChange(
+                            incident._id,
+                            'Resolved',
+                          )
+                        }
+                      >
+                        Mark Resolved
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleStatusChange(
+                            incident._id,
+                            'Investigating',
+                          )
+                        }
+                      >
+                        Re-investigate
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleStatusChange(
+                          incident._id,
+                          'Investigating',
+                        )
+                      }
+                    >
+                      Re-open Investigation
+                    </button>
+                  )}
+                </div>
+
+              </div>
             ))}
 
         </div>

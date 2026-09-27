@@ -22,13 +22,18 @@ const incidentSchema = new mongoose.Schema(
 
         severity: {
             type: String,
-            enum: ['Critical', 'High', 'Medium'],
+            enum: ['Critical', 'High', 'Medium', 'Low'],
             default: 'Medium',
         },
 
         status: {
             type: String,
-            enum: ['Investigating', 'Resolved', 'Awaiting review'],
+            enum: [
+                'Investigating',
+                'Open',
+                'Awaiting review',
+                'Resolved',
+            ],
             default: 'Investigating',
         },
 

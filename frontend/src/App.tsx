@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   analyseIncident,
   getIncident,
+  updateIncidentStatus,
   type InvestigationResponse,
 } from './services/api'
 
@@ -97,6 +98,13 @@ function App() {
 
     try {
       const result = await analyseIncident(incident)
+
+      if (result.incidentId) {
+        await updateIncidentStatus(
+          result.incidentId,
+          'Open',
+        )
+      }
 
       setAgentExecution([
         {
