@@ -2,8 +2,10 @@
   "name": "microsoft-ai-powered-software-engineering-devops",
   "version": "1.0.0",
   "description": "A cloud-native, AI-powered software engineering and DevOps operations platform built on Microsoft Azure and Microsoft Foundry.",
-  "main": "index.js",
+  "main": "src/app.js",
   "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

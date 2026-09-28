@@ -52,6 +52,22 @@ const incidentSchema = new mongoose.Schema(
             default: '',
         },
 
+        investigationError: {
+            type: String,
+            default: '',
+        },
+
+        actionStatus: {
+            type: String,
+            enum: [
+                'Recommended',
+                'In progress',
+                'Awaiting verification',
+                'Verified',
+            ],
+            default: 'Recommended',
+        },
+
         rootCause: {
             type: String,
             default: 'Pending investigation',

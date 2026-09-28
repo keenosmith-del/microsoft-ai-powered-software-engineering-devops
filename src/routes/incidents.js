@@ -1,5 +1,6 @@
 const express = require('express');
 const Incident = require('../models/Incident');
+const { runInvestigation } = require('../services/agentRuntime');
 
 const router = express.Router();
 
@@ -41,23 +42,58 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+router.post('/:id/retry', async (req, res) => {
+    try {
+        const incident = await Incident.findById(req.params.id);
+
+        if (!incident) {
+            return res.status(404).json({ success: false, error: 'Incident not found' });
+        }
+
+        if (incident.status !== 'Investigating' || !incident.investigationError) {
+            return res.status(409).json({
+                success: false,
+                error: 'Only a failed investigation can be retried.',
+            });
+        }
+
+        incident.investigationError = '';
+        incident.analysis = '';
+        incident.investigation = '';
+        incident.actions = '';
+        await incident.save();
+
+        try {
+            const result = await runInvestigation(incident.description);
+            incident.analysis = result.analysis || '';
+            incident.investigation = result.investigation || '';
+            incident.actions = result.actions || '';
+            incident.actionStatus = 'Recommended';
+            incident.status = 'Open';
+            incident.investigationError = '';
+            await incident.save();
+            return res.json(incident);
+        } catch (error) {
+            incident.investigationError = error.message || 'Agent runtime request failed';
+            await incident.save();
+            return res.status(502).json({
+                success: false,
+                error: incident.investigationError,
+                incidentId: incident._id,
+            });
+        }
+    } catch (error) {
+        console.error('Failed to retry incident investigation:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to retry incident investigation',
+        });
+    }
+});
+
 router.patch('/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
-
-        const allowedStatuses = [
-            'Investigating',
-            'Open',
-            'Awaiting review',
-            'Resolved',
-        ];
-
-        if (!allowedStatuses.includes(status)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid incident status',
-            });
-        }
 
         const incident = await Incident.findById(req.params.id);
 
@@ -65,6 +101,29 @@ router.patch('/:id/status', async (req, res) => {
             return res.status(404).json({
                 success: false,
                 error: 'Incident not found',
+            });
+        }
+
+        if (status === 'Resolved') {
+            if (!['Open', 'Awaiting review'].includes(incident.status)) {
+                return res.status(409).json({
+                    success: false,
+                    error: 'Only an analyzed incident can be resolved.',
+                });
+            }
+
+            if (incident.actions && incident.actionStatus !== 'Verified') {
+                return res.status(409).json({
+                    success: false,
+                    error: 'Verify the linked engineering action before resolving this incident.',
+                });
+            }
+        } else if (status === 'Open' && incident.status === 'Resolved') {
+            if (incident.actions) incident.actionStatus = 'Recommended';
+        } else {
+            return res.status(409).json({
+                success: false,
+                error: `Incident cannot move from ${incident.status} to ${status}.`,
             });
         }
 

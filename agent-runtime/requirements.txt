@@ -1,6 +1,9 @@
 azure-identity
 azure-mgmt-cognitiveservices
 azure-mgmt-resource
+fastapi
 python-dotenv
 openai
+pydantic
 requests
+uvicorn[standard]

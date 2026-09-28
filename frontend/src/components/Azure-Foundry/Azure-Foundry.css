@@ -86,6 +86,91 @@
   font-weight: 400;
 }
 
+.azure-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.azure-header-actions > small {
+  width: 100%;
+  color: #555;
+  font-size: 9px;
+  text-align: right;
+}
+
+.azure-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #888;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.azure-refresh:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.azure-platform-error {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d29a9a;
+  font-size: 11px;
+}
+
+.azure-inventory-empty {
+  padding: 24px 30px;
+  color: #777;
+  font-size: 11px;
+}
+
+.azure-inventory-list {
+  display: grid;
+}
+
+.azure-inventory-row {
+  display: grid;
+  grid-template-columns: 36px minmax(180px, 1fr) minmax(100px, 0.6fr) minmax(130px, 0.6fr);
+  align-items: center;
+  gap: 14px;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.azure-inventory-row > div:nth-child(2) {
+  min-width: 0;
+}
+
+.azure-inventory-row strong,
+.azure-inventory-row span {
+  display: block;
+  overflow: hidden;
+  color: #aaa;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.azure-inventory-row div span {
+  margin-top: 4px;
+  color: #555;
+  font-size: 9px;
+}
+
+.azure-inventory-row > span {
+  color: #666;
+  text-align: right;
+}
+
 /* ---------- Overview ---------- */
 
 .azure-foundry-overview {
@@ -784,6 +869,23 @@
     gap: 32px;
 
     padding-bottom: 32px;
+  }
+
+  .azure-header-actions {
+    justify-content: flex-start;
+  }
+
+  .azure-header-actions > small {
+    text-align: left;
+  }
+
+  .azure-inventory-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .azure-inventory-row > span {
+    grid-column: 2;
+    text-align: left;
   }
 
   .azure-foundry-header h1 {

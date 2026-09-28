@@ -4,6 +4,10 @@ A cloud-native, AI-powered software engineering and DevOps operations platform b
 
 The platform uses specialised AI agents, retrieval-augmented generation (RAG), tool calling, repository intelligence, CI/CD analysis, cloud telemetry and controlled workflow orchestration to investigate software engineering and operational problems.
 
+## Current implementation
+
+The running application currently uses the React and TypeScript frontend, a CommonJS Express API in `src/`, and a separate FastAPI agent runtime in `agent-runtime/`. The broader architecture below describes the intended direction and includes capabilities that are not all implemented yet. See [the current architecture guide](docs/ARCHITECTURE.md) for runtime boundaries and local startup details. Earlier backend and agent prototypes are retained under `archive/prototypes/`.
+
 ## Technical Objective
 
 The project demonstrates production-oriented AI engineering and cloud engineering through a full-stack application that integrates:

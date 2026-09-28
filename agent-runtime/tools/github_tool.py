@@ -1,4 +1,5 @@
 import os
+import sys
 
 from typing import Any
 
@@ -419,6 +420,11 @@ class GitHubTool:
             repository_default_branch
         )
 
+        branches = self._get(
+            f"/repos/{self.owner}/{self.repository}/branches",
+            params={"per_page": 10},
+        )
+
         commits = self.get_recent_commits(
             limit=10,
             branch=repository_default_branch,
@@ -443,6 +449,27 @@ class GitHubTool:
                 }
             )
 
+        latest_commit_changes = None
+        if commits:
+            try:
+                latest_diff = self.get_commit_diff(commits[0]["sha"])
+                changed_files = latest_diff.get("files", [])
+                latest_commit_changes = {
+                    "sha": latest_diff.get("sha"),
+                    "files_changed": len(changed_files),
+                    "additions": sum(file.get("additions") or 0 for file in changed_files),
+                    "deletions": sum(file.get("deletions") or 0 for file in changed_files),
+                    "files": [
+                        {
+                            "path": file.get("filename"),
+                            "status": file.get("status"),
+                        }
+                        for file in changed_files[:10]
+                    ],
+                }
+            except Exception as error:
+                print(f"Latest commit diff unavailable: {error}", file=sys.stderr)
+
         return {
             "repository": {
                 "name": repository.get("name"),
@@ -459,5 +486,14 @@ class GitHubTool:
                     branch.get("commit", {}) or {}
                 ).get("sha"),
             },
+            "branches": [
+                {
+                    "name": item.get("name"),
+                    "sha": (item.get("commit", {}) or {}).get("sha"),
+                    "protected": item.get("protected", False),
+                }
+                for item in branches
+            ],
             "recent_commits": recent_commits,
+            "latest_commit_changes": latest_commit_changes,
         }

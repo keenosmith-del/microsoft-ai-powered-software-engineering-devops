@@ -1,9 +1,19 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   analyseIncident,
+  getActions,
+  getApiHealth,
+  getCloudPlatform,
+  getIncidents,
   getIncident,
-  updateIncidentStatus,
+  getRepository,
+  retryIncidentInvestigation,
+  type ApiHealth,
+  type CloudPlatformStatus,
+  type EngineeringAction,
+  type Incident,
   type InvestigationResponse,
+  type RepositoryData,
 } from './services/api'
 
 import Sidebar from './components/Sidebar/Sidebar'
@@ -16,7 +26,17 @@ import AzureFoundry from './components/Azure-Foundry/Azure-Foundry'
 import Settings from './components/Settings/Settings'
 import './App.css'
 
-type AgentStatus = 'ready' | 'running' | 'complete'
+type AgentStatus = 'ready' | 'running' | 'complete' | 'loading'
+
+type OverviewSnapshot = {
+  api: ApiHealth | null
+  platform: CloudPlatformStatus | null
+  repository: RepositoryData | null
+  incidents: Incident[] | null
+  actions: EngineeringAction[] | null
+  checkedAt: Date
+  errors: string[]
+}
 
 type AgentExecutionStatus =
   | 'idle'
@@ -33,7 +53,13 @@ type AgentExecution = {
 
 function App() {
   const [activeView, setActiveView] = useState('overview')
+  const [overview, setOverview] = useState<OverviewSnapshot | null>(null)
+  const [overviewLoading, setOverviewLoading] = useState(true)
+  const [overviewRefreshing, setOverviewRefreshing] = useState(false)
   const [incident, setIncident] = useState('')
+  const [severity, setSeverity] = useState<Incident['severity']>('Medium')
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
+  const [actionIncidentId, setActionIncidentId] = useState<string | null>(null)
   const [agentStatus, setAgentStatus] =
     useState<AgentStatus>('ready')
 
@@ -66,12 +92,53 @@ function App() {
   const [investigationError, setInvestigationError] =
     useState('')
 
+  const refreshOverview = useCallback(async () => {
+    const results = await Promise.allSettled([
+      getApiHealth(),
+      getCloudPlatform(),
+      getRepository(),
+      getIncidents(),
+      getActions(),
+    ])
+    const [api, platform, repository, incidents, actions] = results
+
+    setOverview({
+      api: api.status === 'fulfilled' ? api.value : null,
+      platform: platform.status === 'fulfilled' ? platform.value : null,
+      repository: repository.status === 'fulfilled' ? repository.value : null,
+      incidents: incidents.status === 'fulfilled' ? incidents.value : null,
+      actions: actions.status === 'fulfilled' ? actions.value : null,
+      checkedAt: new Date(),
+      errors: results.flatMap((result) => result.status === 'rejected'
+        ? [result.reason instanceof Error ? result.reason.message : 'A live status request failed']
+        : []),
+    })
+    setOverviewLoading(false)
+    setOverviewRefreshing(false)
+  }, [])
+
+  const handleOverviewRefresh = () => {
+    setOverviewRefreshing(true)
+    void refreshOverview()
+  }
+
+  useEffect(() => {
+    if (activeView !== 'overview') return
+    const initialLoad = window.setTimeout(() => void refreshOverview(), 0)
+    const interval = window.setInterval(() => void refreshOverview(), 120_000)
+    return () => {
+      window.clearTimeout(initialLoad)
+      window.clearInterval(interval)
+    }
+  }, [activeView, refreshOverview])
+
   const handleInvestigate = async () => {
     if (!incident.trim()) {
       return
     }
 
     setAgentStatus('running')
+    setSelectedIncident(null)
     setInvestigationResult(null)
     setInvestigationError('')
 
@@ -97,14 +164,7 @@ function App() {
     ])
 
     try {
-      const result = await analyseIncident(incident)
-
-      if (result.incidentId) {
-        await updateIncidentStatus(
-          result.incidentId,
-          'Open',
-        )
-      }
+      const result = await analyseIncident(incident, severity)
 
       setAgentExecution([
         {
@@ -129,6 +189,14 @@ function App() {
 
       setInvestigationResult(result)
       setAgentStatus('complete')
+      if (result.incidentId) {
+        try {
+          setSelectedIncident(await getIncident(result.incidentId))
+        } catch (loadError) {
+          console.error('Investigation completed, but its saved record could not be reloaded:', loadError)
+        }
+      }
+      void refreshOverview()
     } catch (error) {
       console.error('Investigation failed:', error)
 
@@ -149,6 +217,7 @@ function App() {
       )
 
       setAgentStatus('ready')
+      void refreshOverview()
     }
   }
 
@@ -156,6 +225,7 @@ function App() {
     setInvestigationResult(null)
     setInvestigationError('')
     setAgentStatus('ready')
+    setSelectedIncident(null)
 
     setAgentExecution((current) =>
       current.map((agent) => ({
@@ -167,6 +237,8 @@ function App() {
 
   const handleNewInvestigation = () => {
     setIncident('')
+    setSeverity('Medium')
+    setSelectedIncident(null)
     setInvestigationResult(null)
     setInvestigationError('')
     setAgentStatus('ready')
@@ -184,7 +256,8 @@ function App() {
   const handleSelectIncident = async (incidentId: string) => {
     setInvestigationError('')
     setInvestigationResult(null)
-    setAgentStatus('running')
+    setSelectedIncident(null)
+    setAgentStatus('loading')
     setActiveView('overview')
 
     setAgentExecution([
@@ -211,16 +284,23 @@ function App() {
     try {
       const selectedIncident = await getIncident(incidentId)
 
+      setSelectedIncident(selectedIncident)
       setIncident(selectedIncident.description)
+      setSeverity(selectedIncident.severity)
 
-      setInvestigationResult({
+      const hasResults = Boolean(selectedIncident.analysis || selectedIncident.investigation || selectedIncident.actions)
+      setInvestigationResult(hasResults ? {
         success: true,
         analysis: selectedIncident.analysis,
         investigation: selectedIncident.investigation,
         actions: selectedIncident.actions,
-      })
-
-      setAgentStatus('complete')
+        incidentId: selectedIncident._id,
+      } : null)
+      setInvestigationError(hasResults ? '' : selectedIncident.investigationError || (selectedIncident.status === 'Investigating' ? 'This investigation has not completed yet.' : 'This incident has no saved investigation output.'))
+      setAgentStatus(hasResults ? 'complete' : 'ready')
+      if (!hasResults) {
+        setAgentExecution((current) => current.map((agent) => ({ ...agent, status: 'idle' })))
+      }
     } catch (error) {
       console.error('Failed to load incident:', error)
 
@@ -232,6 +312,69 @@ function App() {
 
       setAgentStatus('ready')
     }
+  }
+
+  const handleRetrySelectedInvestigation = async () => {
+    if (!selectedIncident) return
+    setAgentStatus('running')
+    setInvestigationResult(null)
+    setInvestigationError('')
+    try {
+      const updated = await retryIncidentInvestigation(selectedIncident._id)
+      setSelectedIncident(updated)
+      setInvestigationResult({
+        success: true,
+        analysis: updated.analysis,
+        investigation: updated.investigation,
+        actions: updated.actions,
+        incidentId: updated._id,
+      })
+      setAgentStatus('complete')
+      void refreshOverview()
+    } catch (retryError) {
+      setInvestigationError(retryError instanceof Error ? retryError.message : 'Investigation retry failed')
+      setAgentStatus('ready')
+    }
+  }
+
+  const openIncidentActions = (incidentId: string) => {
+    setActionIncidentId(incidentId)
+    setActiveView('actions')
+  }
+
+  const activeIncidentCount = overview?.incidents?.filter((item) =>
+    item.status === 'Investigating' || item.status === 'Open',
+  ).length
+  const openActionCount = overview?.actions?.filter((item) => item.status !== 'Verified').length
+  const confirmedChecks = [
+    overview?.api?.status === 'ok',
+    overview?.platform?.runtime.status === 'ok',
+    overview?.repository !== null && overview?.repository !== undefined,
+    overview?.incidents !== null && overview?.incidents !== undefined,
+    overview?.actions !== null && overview?.actions !== undefined,
+    overview?.platform?.azure.status === 'connected',
+    overview?.platform?.foundry.authentication === 'authenticated',
+  ].filter(Boolean).length
+  const overviewStatus = overviewLoading
+    ? 'Checking platform'
+    : confirmedChecks === 7
+      ? 'Services connected · inference untested'
+      : confirmedChecks > 0
+        ? 'Partial connectivity'
+        : 'Services unavailable'
+  const getStatusLabel = (status: string | undefined) => {
+    if (overviewLoading && !status) return 'Checking'
+    if (!status) return 'Unavailable'
+    return ({
+      ok: 'Connected',
+      connected: 'Connected',
+      ready: 'Configured',
+      authenticated: 'Authenticated',
+      not_configured: 'Not configured',
+      configuration_incomplete: 'Configuration incomplete',
+      unavailable: 'Unavailable',
+      not_checked: 'Not checked',
+    } as Record<string, string>)[status] ?? status
   }
 
   return (
@@ -259,8 +402,9 @@ function App() {
           </div>
 
           <div className="system-status">
-            <span className="status-dot" />
-            <span>System Operational</span>
+            <span className={`status-dot ${overviewStatus.startsWith('Services connected') ? 'connected' : overviewStatus === 'Checking platform' ? 'checking' : 'degraded'}`} />
+            <span>{overviewStatus}</span>
+            {activeView === 'overview' && <button type="button" onClick={handleOverviewRefresh} disabled={overviewRefreshing}>{overviewRefreshing ? 'Refreshing…' : 'Refresh'}</button>}
           </div>
         </header>
 
@@ -285,52 +429,57 @@ function App() {
               <div className="hero-meta">
                 <div>
                   <span>Runtime</span>
-                  <strong>Python / FastAPI</strong>
+                  <strong>{overview?.platform?.runtime.service ?? getStatusLabel(undefined)}</strong>
                 </div>
 
                 <div>
                   <span>AI Platform</span>
-                  <strong>Microsoft Foundry</strong>
+                  <strong>{overview?.platform?.foundry.deployment ?? getStatusLabel(overview?.platform?.foundry.status)}</strong>
                 </div>
 
                 <div>
                   <span>Repository</span>
-                  <strong>GitHub</strong>
+                  <strong>{overview?.repository?.repository.full_name ?? getStatusLabel(undefined)}</strong>
                 </div>
               </div>
             </section>
 
+            <div className="overview-sync-status" role="status">
+              <span>{overview?.checkedAt ? `Live data updated ${overview.checkedAt.toLocaleTimeString()}` : 'Loading current platform data'}</span>
+              {overview?.errors.length ? <span>{overview.errors.length} source{overview.errors.length === 1 ? '' : 's'} unavailable</span> : null}
+            </div>
+
             <section className="overview-grid">
 
               <article className="metric-card">
-                <div className="card-label">AGENTS</div>
-                <div className="metric-value">3</div>
+                <div className="card-label">ACTIVE INCIDENTS</div>
+                <div className="metric-value">{activeIncidentCount ?? (overviewLoading ? '…' : '—')}</div>
                 <div className="metric-detail">
-                  Specialised engineering agents
+                  {overview?.incidents ? `${overview.incidents.length} recorded incidents` : overviewLoading ? 'Loading incident history' : 'Incident service unavailable'}
+                </div>
+              </article>
+
+              <article className="metric-card">
+                <div className="card-label">OPEN ACTIONS</div>
+                <div className="metric-value">{openActionCount ?? (overviewLoading ? '…' : '—')}</div>
+                <div className="metric-detail">
+                  {overview?.actions ? `${overview.actions.filter((item) => item.status === 'Recommended').length} recommended · ${overview.actions.filter((item) => item.status !== 'Verified' && item.status !== 'Recommended').length} in progress` : overviewLoading ? 'Loading action queue' : 'Action queue unavailable'}
                 </div>
               </article>
 
               <article className="metric-card">
                 <div className="card-label">REPOSITORY</div>
-                <div className="metric-value">Connected</div>
+                <div className="metric-value">{getStatusLabel(overview?.repository ? 'connected' : undefined)}</div>
                 <div className="metric-detail">
-                  GitHub repository context available
+                  {overview?.repository ? `${overview.repository.repository.full_name} · ${overview.repository.recent_commits.length} recent commits` : 'GitHub repository context'}
                 </div>
               </article>
 
               <article className="metric-card">
-                <div className="card-label">AZURE</div>
-                <div className="metric-value">Connected</div>
+                <div className="card-label">AZURE RESOURCES</div>
+                <div className="metric-value">{overview?.platform?.azure.status === 'connected' ? overview.platform.azure.resource_count : getStatusLabel(overview?.platform?.azure.status)}</div>
                 <div className="metric-detail">
-                  Azure resource context available
-                </div>
-              </article>
-
-              <article className="metric-card">
-                <div className="card-label">MODEL</div>
-                <div className="metric-value">Ready</div>
-                <div className="metric-detail">
-                  Microsoft Foundry inference
+                  {overview?.platform?.azure.status === 'connected' ? `Visible to Azure identity · Foundry ${getStatusLabel(overview.platform.foundry.authentication)}` : 'Live Azure Resource Manager check'}
                 </div>
               </article>
 
@@ -356,6 +505,7 @@ function App() {
 
                     {agentStatus === 'ready' && 'Ready'}
                     {agentStatus === 'running' && 'Investigating'}
+                    {agentStatus === 'loading' && 'Loading saved investigation'}
                     {agentStatus === 'complete' && 'Complete'}
                   </div>
                 </div>
@@ -366,34 +516,63 @@ function App() {
                     Incident description
                   </label>
 
+                  {selectedIncident && <div className="selected-incident-details">
+                    <span>INCIDENT {selectedIncident._id}</span>
+                    <strong>{selectedIncident.status} · {selectedIncident.severity}</strong>
+                    {selectedIncident.actionStatus && <small>Action: {selectedIncident.actionStatus}</small>}
+                    {selectedIncident.actions && <button type="button" onClick={() => openIncidentActions(selectedIncident._id)}>Open linked action</button>}
+                  </div>}
+
                   <textarea
                     id="incident"
                     value={incident}
                     onChange={(event) =>
                       setIncident(event.target.value)
                     }
+                    readOnly={Boolean(selectedIncident)}
                     placeholder="Describe the incident, symptoms, affected service, error behaviour, or recent changes..."
                     rows={8}
                   />
 
+                  {!selectedIncident && <label className="severity-select-label" htmlFor="incident-severity">
+                    Severity
+                    <select id="incident-severity" value={severity} onChange={(event) => setSeverity(event.target.value as Incident['severity'])}>
+                      <option>Critical</option><option>High</option><option>Medium</option><option>Low</option>
+                    </select>
+                  </label>}
+
                   <div className="incident-actions">
 
                     <span>
-                      Evidence will be evaluated across repository
-                      and Azure context.
+                      {selectedIncident ? 'Saved incident details are read-only. Create a new investigation to submit a different description.' : `Severity: ${severity}. Evidence is gathered from currently available integrations.`}
                     </span>
 
                     <button
                       type="button"
-                      onClick={handleInvestigate}
+                      onClick={() => {
+                        if (selectedIncident?.status === 'Investigating' && selectedIncident.investigationError) {
+                          void handleRetrySelectedInvestigation()
+                        } else if (selectedIncident) {
+                          handleNewInvestigation()
+                        } else {
+                          void handleInvestigate()
+                        }
+                      }}
                       disabled={
-                        !incident.trim() ||
-                        agentStatus === 'running'
+                        (!incident.trim() && !selectedIncident) ||
+                        agentStatus === 'running' ||
+                        agentStatus === 'loading'
                       }
                     >
                       {agentStatus === 'running'
                         ? 'Investigating...'
-                        : 'Start Investigation'}
+                        : agentStatus === 'loading'
+                          ? 'Loading investigation...'
+                          : selectedIncident?.status === 'Investigating' && selectedIncident.investigationError
+                            ? 'Retry Investigation'
+                            : selectedIncident
+                              ? 'New Investigation'
+                          : 'Start Investigation'}
                     </button>
 
                   </div>
@@ -418,7 +597,9 @@ function App() {
                         ? 'Investigation complete'
                         : agentStatus === 'running'
                           ? 'Investigation in progress'
-                          : 'Awaiting investigation'}
+                          : agentStatus === 'loading'
+                            ? 'Loading saved investigation'
+                            : 'Awaiting investigation'}
                     </span>
 
                   </div>
@@ -623,28 +804,28 @@ function App() {
                     <div>
                       <span>GitHub</span>
                       <strong>
-                        Repository snapshot
+                        {overview?.repository?.repository.full_name ?? getStatusLabel(overview?.repository ? 'connected' : undefined)}
                       </strong>
                     </div>
 
                     <div>
                       <span>Git history</span>
                       <strong>
-                        Recent commits &amp; diffs
+                        {overview?.repository ? `${overview.repository.recent_commits.length} commits loaded` : getStatusLabel(undefined)}
                       </strong>
                     </div>
 
                     <div>
                       <span>Azure</span>
                       <strong>
-                        Resource context
+                        {overview?.platform?.azure.status === 'connected' ? `${overview.platform.azure.resource_count} resources` : getStatusLabel(overview?.platform?.azure.status)}
                       </strong>
                     </div>
 
                     <div>
                       <span>Foundry</span>
                       <strong>
-                        Model inference
+                        {overview?.platform?.foundry.deployment ?? getStatusLabel(overview?.platform?.foundry.status)}
                       </strong>
                     </div>
 
@@ -677,12 +858,13 @@ function App() {
           <Incidents
             onNewInvestigation={handleNewInvestigation}
             onSelectIncident={handleSelectIncident}
+            onOpenActions={openIncidentActions}
           />
         )}
 
         {activeView === 'engineering' && <Engineering />}
 
-        {activeView === 'actions' && <Actions />}
+        {activeView === 'actions' && <Actions incidentId={actionIncidentId ?? undefined} onClearIncidentFilter={() => setActionIncidentId(null)} onBackToIncidents={() => setActiveView('incidents')} />}
 
         {activeView === 'repository' && <Repository />}
 

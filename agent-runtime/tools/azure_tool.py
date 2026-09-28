@@ -17,7 +17,7 @@ class AzureTool:
     for the Incident Investigation Agent.
     """
 
-    def __init__(self):
+    def __init__(self, credential=None):
 
         subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
 
@@ -27,7 +27,8 @@ class AzureTool:
             )
 
         self.subscription_id = subscription_id
-        self.credential = DefaultAzureCredential()
+        self.credential = credential or DefaultAzureCredential()
+        self.last_resource_query_truncated = False
 
         self.resource_client = ResourceManagementClient(
             self.credential,
@@ -44,6 +45,7 @@ class AzureTool:
     def get_resources(
         self,
         resource_group: str | None = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Return Azure resources visible to the authenticated identity.
@@ -62,8 +64,13 @@ class AzureTool:
             resources = self.resource_client.resources.list()
 
         results = []
+        truncated = False
 
         for resource in resources:
+
+            if limit is not None and len(results) >= limit:
+                truncated = True
+                break
 
             results.append(
                 {
@@ -88,6 +95,7 @@ class AzureTool:
                 }
             )
 
+        self.last_resource_query_truncated = truncated
         return results
 
     def find_foundry_projects(

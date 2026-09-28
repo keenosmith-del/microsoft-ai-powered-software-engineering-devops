@@ -135,6 +135,33 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+.actions-refresh:disabled,
+.action-execute:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.actions-error {
+  padding: 12px 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d29a9a;
+  font-size: 11px;
+}
+
+.actions-empty {
+  display: grid;
+  gap: 8px;
+  padding: 30px;
+  color: #777;
+  font-size: 11px;
+}
+
+.actions-empty strong {
+  color: #c9c9c9;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* ---------- Action List ---------- */
 
 .actions-list {
