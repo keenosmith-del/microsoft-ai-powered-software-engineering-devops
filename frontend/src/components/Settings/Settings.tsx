@@ -94,6 +94,7 @@ function Settings() {
   ]
   const confirmedChecks = checks.filter(Boolean).length
   const pageStatus = loading ? 'Checking integrations' : confirmedChecks === checks.length ? 'All checks responding' : `${confirmedChecks} of ${checks.length} checks responding`
+  const pageTone = loading ? 'checking' : confirmedChecks === checks.length ? 'connected' : confirmedChecks > 0 ? 'partial' : 'unavailable'
 
   const connectionLabel = (state: string | null | undefined) => {
     if (loading && !state) return 'Checking'
@@ -128,7 +129,7 @@ function Settings() {
           <p>Live configuration and integration status for the AI Engineering Operations environment.</p>
         </div>
         <div className="settings-header-actions">
-          <div className="settings-status"><span className="settings-status-dot" /><span>{pageStatus}</span></div>
+          <div className={`settings-status is-${pageTone}`} role="status"><span className="settings-status-dot" /><span>{pageStatus}</span></div>
           <button type="button" className="settings-refresh" onClick={handleRefresh} disabled={refreshing}>
             <RotateCcw size={14} />{refreshing ? 'Refreshing' : 'Refresh'}
           </button>
@@ -197,8 +198,9 @@ function Settings() {
 }
 
 function SettingRow({ label, detail, value }: { label: string; detail: string; value: string }) {
-  const isUnavailable = ['Unavailable', 'Not configured', 'Configuration incomplete'].includes(value)
-  return <div className="settings-row"><div><strong>{label}</strong><span>{detail}</span></div><b className={isUnavailable ? 'settings-unavailable' : value === 'Connected' || value === 'Authenticated' ? 'settings-connected' : ''}>{value}</b></div>
+  const isUnavailable = ['Unavailable', 'Not configured', 'Configuration incomplete', 'Incomplete configuration'].includes(value)
+  const valueClass = isUnavailable ? 'settings-unavailable' : value === 'Checking' ? 'settings-checking' : value === 'Connected' || value === 'Authenticated' || value === 'Configured' ? 'settings-connected' : ''
+  return <div className="settings-row"><div><strong>{label}</strong><span>{detail}</span></div><b className={valueClass}>{value}</b></div>
 }
 
 export default Settings

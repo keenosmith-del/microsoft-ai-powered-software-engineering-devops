@@ -1,5 +1,4 @@
 import {
-  Activity,
   Bot,
   Cloud,
   GitBranch,
@@ -9,6 +8,7 @@ import {
   Terminal,
   Wrench,
 } from 'lucide-react'
+import microsoftMark from '../../assets/microsoft.png'
 import './Sidebar.css'
 
 type SidebarItem = {
@@ -67,8 +67,8 @@ function Sidebar({ activeView, onNavigate }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-brand-mark">
-          <Activity size={18} strokeWidth={1.7} />
+        <div className="sidebar-brand-mark" aria-hidden="true">
+          <img src={microsoftMark} alt="" />
         </div>
 
         <div className="sidebar-brand-text">

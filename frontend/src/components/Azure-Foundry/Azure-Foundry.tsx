@@ -85,6 +85,10 @@ function AzureFoundry() {
   const overallStatus = apiState === 'connected' && runtimeState === 'connected'
     ? azureState === 'connected' && foundryState === 'ready' ? 'Checks passing · inference untested' : 'Partially available'
     : loading ? 'Checking services' : 'Platform unavailable'
+  const overallTone = overallStatus === 'Checks passing · inference untested'
+    ? 'connected'
+    : overallStatus === 'Checking services' ? 'checking' : 'degraded'
+  const stateClass = (state: string) => state.toLowerCase().replaceAll('_', '-').replaceAll(' ', '-')
   const resourceCount = platform?.azure.resource_count
   const runtimeName = platform?.runtime.service ?? 'FastAPI agent runtime'
   const deployment = platform?.foundry.deployment
@@ -105,7 +109,7 @@ function AzureFoundry() {
           <p>Cloud resource access, Foundry authentication and deployment configuration, and live agent-runtime status.</p>
         </div>
         <div className="azure-header-actions">
-          <div className="azure-foundry-header-status"><span className="azure-foundry-status-dot" /><div><span>PLATFORM STATUS</span><strong>{overallStatus}</strong></div></div>
+          <div className={`azure-foundry-header-status is-${overallTone}`} role="status"><span className="azure-foundry-status-dot" /><div><span>PLATFORM STATUS</span><strong>{overallStatus}</strong></div></div>
           <button type="button" className="azure-refresh" onClick={handleRefresh} disabled={refreshing}><RotateCcw size={14} />{refreshing ? 'Refreshing' : 'Refresh'}</button>
           <small>{updatedAt ? `Updated ${updatedAt.toLocaleTimeString()}` : 'Not yet checked'}</small>
         </div>
@@ -130,7 +134,7 @@ function AzureFoundry() {
                 <div className="azure-resource-icon"><Icon size={18} strokeWidth={1.6} /></div>
                 <div className="azure-resource-info"><strong>{resource.name}</strong><span>{resource.type}</span></div>
                 <div className="azure-resource-description">{resource.description}</div>
-                <div className="azure-resource-status"><span className="azure-resource-status-dot" />{formatState(resource.status)}</div>
+                <div className={`azure-resource-status is-${stateClass(resource.status)}`}><span className="azure-resource-status-dot" />{formatState(resource.status)}</div>
               </div>
             })}
           </div>
@@ -141,7 +145,7 @@ function AzureFoundry() {
           <div className="model-card">
             <div className="model-icon"><Brain size={20} strokeWidth={1.5} /></div>
             <div className="model-name"><span>DEPLOYMENT</span><strong>{deployment ?? (loading ? 'Checking…' : 'Not configured')}</strong></div>
-            <div className="model-status"><span className="azure-resource-status-dot" />{formatState(foundryState)}</div>
+            <div className={`model-status is-${stateClass(foundryState)}`}><span className="azure-resource-status-dot" />{formatState(foundryState)}</div>
           </div>
           <div className="model-details">
             <div><span>Provider</span><strong>Microsoft Foundry</strong></div>
@@ -170,11 +174,8 @@ function AzureFoundry() {
         <div className="azure-panel-heading"><div><span className="eyebrow">INFERENCE PIPELINE</span><h2>Foundry request path</h2></div></div>
         <div className="inference-flow">
           <div className="inference-step"><span className="inference-number">01</span><div className="inference-step-icon"><Zap size={17} /></div><div><strong>Application API</strong><span>{formatState(apiState)}</span></div></div>
-          <div className="inference-line" />
           <div className="inference-step"><span className="inference-number">02</span><div className="inference-step-icon"><Server size={17} /></div><div><strong>Agent Runtime</strong><span>{formatState(runtimeState)}</span></div></div>
-          <div className="inference-line" />
           <div className="inference-step"><span className="inference-number">03</span><div className="inference-step-icon"><Brain size={17} /></div><div><strong>Microsoft Foundry</strong><span>{formatState(foundryState)}</span></div></div>
-          <div className="inference-line" />
           <div className="inference-step"><span className="inference-number">04</span><div className="inference-step-icon"><CheckCircle2 size={17} /></div><div><strong>Inference</strong><span>{platform?.foundry.inference === 'not_tested' ? 'Not probed on this page' : 'No inference check'}</span></div></div>
         </div>
       </section>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   analyseIncident,
   getActions,
@@ -24,6 +24,7 @@ import Repository from './components/Repository/Repository'
 import Agents from './components/Agents/Agents'
 import AzureFoundry from './components/Azure-Foundry/Azure-Foundry'
 import Settings from './components/Settings/Settings'
+import foundryMark from './assets/foundry.png'
 import './App.css'
 
 type AgentStatus = 'ready' | 'running' | 'complete' | 'loading'
@@ -49,6 +50,89 @@ type AgentExecution = {
   name: string
   description: string
   status: AgentExecutionStatus
+}
+
+function renderMarkdownInline(text: string): ReactNode[] {
+  const tokenPattern = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_)/g
+  const nodes: ReactNode[] = []
+  let lastIndex = 0
+
+  for (const match of text.matchAll(tokenPattern)) {
+    const token = match[0]
+    const index = match.index ?? 0
+    if (index > lastIndex) nodes.push(text.slice(lastIndex, index))
+    if (token.startsWith('**') || token.startsWith('__')) {
+      nodes.push(<strong key={`strong-${index}`}>{token.slice(2, -2)}</strong>)
+    } else if (token.startsWith('`')) {
+      nodes.push(<code key={`code-${index}`}>{token.slice(1, -1)}</code>)
+    } else {
+      nodes.push(<em key={`em-${index}`}>{token.slice(1, -1)}</em>)
+    }
+    lastIndex = index + token.length
+  }
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex))
+  return nodes
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  const lines = content.split(/\r?\n/)
+  const blocks: ReactNode[] = []
+  let index = 0
+  let blockKey = 0
+
+  while (index < lines.length) {
+    const line = lines[index]
+    if (!line.trim()) { index += 1; continue }
+
+    if (/^\s*```/.test(line)) {
+      const codeLines: string[] = []
+      index += 1
+      while (index < lines.length && !/^\s*```/.test(lines[index])) codeLines.push(lines[index++])
+      if (index < lines.length) index += 1
+      blocks.push(<pre className="markdown-code" key={blockKey++}><code>{codeLines.join('\n')}</code></pre>)
+      continue
+    }
+
+    const heading = line.match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/)
+    if (heading) {
+      const level = Math.min(heading[1].length, 4)
+      const Heading = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4'
+      blocks.push(<Heading key={blockKey++}>{renderMarkdownInline(heading[2])}</Heading>)
+      index += 1
+      continue
+    }
+
+    const listMatch = line.match(/^\s*([-*+]\s+|\d+[.)]\s+)/)
+    if (listMatch) {
+      const ordered = /^\s*\d/.test(line)
+      const items: ReactNode[] = []
+      while (index < lines.length) {
+        const item = lines[index].match(/^\s*(?:[-*+]\s+|\d+[.)]\s+)(.+)$/)
+        if (!item) break
+        items.push(<li key={items.length}>{renderMarkdownInline(item[1])}</li>)
+        index += 1
+      }
+      const List = ordered ? 'ol' : 'ul'
+      blocks.push(<List key={blockKey++}>{items}</List>)
+      continue
+    }
+
+    if (/^\s*>\s?/.test(line)) {
+      const quoteLines: string[] = []
+      while (index < lines.length && /^\s*>/.test(lines[index])) quoteLines.push(lines[index++].replace(/^\s*>\s?/, ''))
+      blocks.push(<blockquote key={blockKey++}>{renderMarkdownInline(quoteLines.join(' '))}</blockquote>)
+      continue
+    }
+
+    const paragraph = [line.trim()]
+    index += 1
+    while (index < lines.length && lines[index].trim() && !/^\s*(#{1,6}\s|[-*+]\s+|\d+[.)]\s+|>|```)/.test(lines[index])) {
+      paragraph.push(lines[index++].trim())
+    }
+    blocks.push(<p key={blockKey++}>{renderMarkdownInline(paragraph.join(' '))}</p>)
+  }
+
+  return <div className="markdown-content">{blocks}</div>
 }
 
 function App() {
@@ -388,23 +472,18 @@ function App() {
 
         <header className="topbar">
           <div className="brand">
-            <div className="brand-mark">AI</div>
+            <div className="brand-mark" aria-hidden="true"><img src={foundryMark} alt="" /></div>
 
             <div>
-              <div className="brand-name">
-                AI Engineering Operations
-              </div>
-
-              <div className="brand-subtitle">
-                Software Engineering &amp; DevOps Intelligence
-              </div>
+              <div className="brand-name">Engineering Operations</div>
+              <div className="brand-subtitle">Operational control plane</div>
             </div>
           </div>
 
-          <div className="system-status">
-            <span className={`status-dot ${overviewStatus.startsWith('Services connected') ? 'connected' : overviewStatus === 'Checking platform' ? 'checking' : 'degraded'}`} />
+          <div className={`system-status ${overviewStatus.startsWith('Services connected') ? 'is-connected' : overviewStatus === 'Checking platform' ? 'is-checking' : 'is-degraded'}`}>
+            <span className="status-dot" aria-hidden="true" />
             <span>{overviewStatus}</span>
-            {activeView === 'overview' && <button type="button" onClick={handleOverviewRefresh} disabled={overviewRefreshing}>{overviewRefreshing ? 'Refreshing…' : 'Refresh'}</button>}
+            {activeView === 'overview' && <button type="button" onClick={handleOverviewRefresh} disabled={overviewRefreshing}><span aria-hidden="true">↻</span>{overviewRefreshing ? 'Refreshing' : 'Refresh'}</button>}
           </div>
         </header>
 
@@ -412,47 +491,40 @@ function App() {
           <main className="dashboard">
 
             <section className="hero-section">
-              <div>
-                <span className="eyebrow">
-                  ENGINEERING OPERATIONS
-                </span>
-
-                <h1>Investigate. Understand. Act.</h1>
-
-                <p>
-                  AI-powered investigation across application code,
-                  repository changes, Azure resources, and engineering
-                  context.
-                </p>
+              <div className="hero-copy">
+                <h1>Engineering<br />operations.</h1>
+                <p>Incident analysis across application code, repository history, Azure resources, and engineering actions.</p>
               </div>
 
               <div className="hero-meta">
-                <div>
-                  <span>Runtime</span>
+                <div className="hero-meta-item">
+                  <span className="hero-meta-label">API runtime</span>
                   <strong>{overview?.platform?.runtime.service ?? getStatusLabel(undefined)}</strong>
                 </div>
 
-                <div>
-                  <span>AI Platform</span>
+                <div className="hero-meta-item">
+                  <span className="hero-meta-label">Model deployment</span>
                   <strong>{overview?.platform?.foundry.deployment ?? getStatusLabel(overview?.platform?.foundry.status)}</strong>
                 </div>
 
-                <div>
-                  <span>Repository</span>
+                <div className="hero-meta-item">
+                  <span className="hero-meta-label">Repository</span>
                   <strong>{overview?.repository?.repository.full_name ?? getStatusLabel(undefined)}</strong>
                 </div>
               </div>
             </section>
 
             <div className="overview-sync-status" role="status">
-              <span>{overview?.checkedAt ? `Live data updated ${overview.checkedAt.toLocaleTimeString()}` : 'Loading current platform data'}</span>
-              {overview?.errors.length ? <span>{overview.errors.length} source{overview.errors.length === 1 ? '' : 's'} unavailable</span> : null}
+              <span><span className="sync-symbol" aria-hidden="true">⌁</span>{overview?.checkedAt ? `Last synchronized ${overview.checkedAt.toLocaleTimeString()}` : 'Loading platform state'}</span>
+              {overview?.errors.length ? <span>{overview.errors.length} data source{overview.errors.length === 1 ? '' : 's'} unavailable</span> : null}
             </div>
 
             <section className="overview-grid">
 
               <article className="metric-card">
-                <div className="card-label">ACTIVE INCIDENTS</div>
+                <div className="metric-heading">
+                  <div className="card-label">OPEN / INVESTIGATING</div>
+                </div>
                 <div className="metric-value">{activeIncidentCount ?? (overviewLoading ? '…' : '—')}</div>
                 <div className="metric-detail">
                   {overview?.incidents ? `${overview.incidents.length} recorded incidents` : overviewLoading ? 'Loading incident history' : 'Incident service unavailable'}
@@ -460,7 +532,9 @@ function App() {
               </article>
 
               <article className="metric-card">
-                <div className="card-label">OPEN ACTIONS</div>
+                <div className="metric-heading">
+                  <div className="card-label">UNVERIFIED ACTIONS</div>
+                </div>
                 <div className="metric-value">{openActionCount ?? (overviewLoading ? '…' : '—')}</div>
                 <div className="metric-detail">
                   {overview?.actions ? `${overview.actions.filter((item) => item.status === 'Recommended').length} recommended · ${overview.actions.filter((item) => item.status !== 'Verified' && item.status !== 'Recommended').length} in progress` : overviewLoading ? 'Loading action queue' : 'Action queue unavailable'}
@@ -468,7 +542,9 @@ function App() {
               </article>
 
               <article className="metric-card">
-                <div className="card-label">REPOSITORY</div>
+                <div className="metric-heading">
+                  <div className="card-label">REPOSITORY</div>
+                </div>
                 <div className="metric-value">{getStatusLabel(overview?.repository ? 'connected' : undefined)}</div>
                 <div className="metric-detail">
                   {overview?.repository ? `${overview.repository.repository.full_name} · ${overview.repository.recent_commits.length} recent commits` : 'GitHub repository context'}
@@ -476,7 +552,9 @@ function App() {
               </article>
 
               <article className="metric-card">
-                <div className="card-label">AZURE RESOURCES</div>
+                <div className="metric-heading">
+                  <div className="card-label">AZURE RESOURCES</div>
+                </div>
                 <div className="metric-value">{overview?.platform?.azure.status === 'connected' ? overview.platform.azure.resource_count : getStatusLabel(overview?.platform?.azure.status)}</div>
                 <div className="metric-detail">
                   {overview?.platform?.azure.status === 'connected' ? `Visible to Azure identity · Foundry ${getStatusLabel(overview.platform.foundry.authentication)}` : 'Live Azure Resource Manager check'}
@@ -491,13 +569,9 @@ function App() {
 
                 <div className="section-heading">
                   <div>
-                    <span className="eyebrow">
-                      INCIDENT INVESTIGATION
-                    </span>
-
-                    <h2>
-                      Investigate an engineering incident
-                    </h2>
+                    <span className="eyebrow">INCIDENT WORKFLOW</span>
+                    <h2>Incident intake</h2>
+                    <p className="section-description">Submit a description to run analysis against configured sources.</p>
                   </div>
 
                   <div className={`agent-state ${agentStatus}`}>
@@ -513,7 +587,7 @@ function App() {
                 <div className="incident-panel">
 
                   <label htmlFor="incident">
-                    Incident description
+                    Incident details
                   </label>
 
                   {selectedIncident && <div className="selected-incident-details">
@@ -530,7 +604,7 @@ function App() {
                       setIncident(event.target.value)
                     }
                     readOnly={Boolean(selectedIncident)}
-                    placeholder="Describe the incident, symptoms, affected service, error behaviour, or recent changes..."
+                    placeholder="Describe the symptoms, affected service, observed errors, impact, and relevant changes."
                     rows={8}
                   />
 
@@ -544,7 +618,7 @@ function App() {
                   <div className="incident-actions">
 
                     <span>
-                      {selectedIncident ? 'Saved incident details are read-only. Create a new investigation to submit a different description.' : `Severity: ${severity}. Evidence is gathered from currently available integrations.`}
+                      {selectedIncident ? 'Saved incident details are read-only. Start a new investigation to submit another incident.' : `Severity: ${severity}. Analysis uses currently configured integrations.`}
                     </span>
 
                     <button
@@ -565,14 +639,14 @@ function App() {
                       }
                     >
                       {agentStatus === 'running'
-                        ? 'Investigating...'
+                        ? 'Investigation running…'
                         : agentStatus === 'loading'
-                          ? 'Loading investigation...'
+                          ? 'Loading saved result…'
                           : selectedIncident?.status === 'Investigating' && selectedIncident.investigationError
                             ? 'Retry Investigation'
                             : selectedIncident
-                              ? 'New Investigation'
-                          : 'Start Investigation'}
+                              ? 'New investigation'
+                              : 'Run investigation'}
                     </button>
 
                   </div>
@@ -588,7 +662,7 @@ function App() {
                       </span>
 
                       <h2>
-                        Investigation results
+                        Investigation result
                       </h2>
                     </div>
 
@@ -598,8 +672,8 @@ function App() {
                         : agentStatus === 'running'
                           ? 'Investigation in progress'
                           : agentStatus === 'loading'
-                            ? 'Loading saved investigation'
-                            : 'Awaiting investigation'}
+                            ? 'Loading saved result'
+                            : 'No result loaded'}
                     </span>
 
                   </div>
@@ -608,10 +682,6 @@ function App() {
 
                     {investigationError && (
                       <div className="empty-state">
-
-                        <div className="empty-state-mark">
-                          ERR
-                        </div>
 
                         <h3>
                           Investigation failed
@@ -628,17 +698,12 @@ function App() {
                       !investigationResult && (
                         <div className="empty-state">
 
-                          <div className="empty-state-mark">
-                            01
-                          </div>
-
                           <h3>
                             No investigation yet
                           </h3>
 
                           <p>
-                            Submit an incident above to begin
-                            an evidence-driven investigation.
+                            Submit an incident description to retrieve analysis and evidence from configured sources.
                           </p>
 
                         </div>
@@ -652,7 +717,7 @@ function App() {
                               type="button"
                               onClick={handleClearOutput}
                             >
-                              Clear Output
+                              Clear result
                             </button>
                           </div>
 
@@ -679,9 +744,7 @@ function App() {
                               </div>
 
                               <div className="result-content">
-                                <pre>
-                                  {investigationResult.analysis}
-                                </pre>
+                                <MarkdownContent content={investigationResult.analysis} />
                               </div>
 
                             </section>
@@ -707,9 +770,7 @@ function App() {
                               </div>
 
                               <div className="result-content">
-                                <pre>
-                                  {investigationResult.investigation}
-                                </pre>
+                                <MarkdownContent content={investigationResult.investigation} />
                               </div>
 
                             </section>
@@ -735,9 +796,7 @@ function App() {
                               </div>
 
                               <div className="result-content">
-                                <pre>
-                                  {investigationResult.actions}
-                                </pre>
+                                <MarkdownContent content={investigationResult.actions} />
                               </div>
 
                             </section>
@@ -755,9 +814,7 @@ function App() {
                 <section className="context-card">
 
                   <div className="card-header">
-                    <span className="eyebrow">
-                      AGENT ORCHESTRATION
-                    </span>
+                    <span className="eyebrow">ANALYSIS SEQUENCE</span>
                   </div>
 
                   <div className="agent-list">
@@ -794,9 +851,7 @@ function App() {
                 <section className="context-card">
 
                   <div className="card-header">
-                    <span className="eyebrow">
-                      ENGINEERING CONTEXT
-                    </span>
+                    <span className="eyebrow">CONNECTED SOURCES</span>
                   </div>
 
                   <div className="context-list">
@@ -835,14 +890,11 @@ function App() {
                 <section className="context-card">
 
                   <div className="card-header">
-                    <span className="eyebrow">
-                      OPERATIONAL PRINCIPLE
-                    </span>
+                    <span className="eyebrow">EVIDENCE STANDARD</span>
                   </div>
 
                   <p className="principle">
-                    Evidence first. Hypotheses second. Conclusions
-                    only when supported by available evidence.
+                    Distinguish observed evidence from hypotheses. Record conclusions only when supported by available data.
                   </p>
 
                 </section>
@@ -875,8 +927,8 @@ function App() {
         {activeView === 'settings' && <Settings />}
 
         <footer className="footer">
-          <span>AI Engineering Operations</span>
-          <span>Local Engineering Console</span>
+          <span>Engineering Operations</span>
+          <span>Development environment</span>
         </footer>
 
       </div>

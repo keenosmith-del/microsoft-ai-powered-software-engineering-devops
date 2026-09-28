@@ -222,8 +222,6 @@ function Agents() {
             </div>
           </div>
 
-          <div className="flow-connector" />
-
           <div className="flow-step">
             <span className="flow-number">02</span>
             <div>
@@ -231,8 +229,6 @@ function Agents() {
               <span>Evaluate evidence &amp; hypotheses</span>
             </div>
           </div>
-
-          <div className="flow-connector" />
 
           <div className="flow-step">
             <span className="flow-number">03</span>

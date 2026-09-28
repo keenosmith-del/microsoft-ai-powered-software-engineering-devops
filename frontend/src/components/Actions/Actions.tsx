@@ -117,7 +117,7 @@ function Actions({ incidentId, onClearIncidentFilter, onBackToIncidents }: Actio
           <h1>Actions</h1>
           <p>Review AI-generated remediation recommendations and track them through engineering work and verification.</p>
         </div>
-        <div className="actions-header-status">
+        <div className={`actions-header-status ${actions === null ? (loading ? 'is-checking' : 'is-unavailable') : 'is-connected'}`} role="status">
           <span className="status-dot" />
           <span>{visibleActions === null ? (loading ? 'Connecting to action queue' : 'Action queue unavailable') : incidentId ? `${visibleActions.length} action(s) for selected incident` : `${visibleActions.length} persisted recommendations`}</span>
         </div>
@@ -176,9 +176,7 @@ function Actions({ incidentId, onClearIncidentFilter, onBackToIncidents }: Actio
             <div className="actions-context-header"><span className="eyebrow">ACTION LIFECYCLE</span></div>
             <div className="execution-flow">
               <div className="execution-step"><span className="execution-number">01</span><div><strong>Recommendation</strong><span>AI plan saved with its incident</span></div></div>
-              <div className="execution-line" />
               <div className="execution-step"><span className="execution-number">02</span><div><strong>Engineering work</strong><span>Engineer tracks work in progress</span></div></div>
-              <div className="execution-line" />
               <div className="execution-step"><span className="execution-number">03</span><div><strong>Verification</strong><span>Engineer confirms the outcome</span></div></div>
             </div>
           </section>

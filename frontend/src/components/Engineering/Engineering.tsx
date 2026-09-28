@@ -91,7 +91,7 @@ function Engineering() {
           <p>Live application health, repository activity, and engineering signals from connected platform services.</p>
         </div>
         <div className="engineering-runtime">
-          <div className="runtime-indicator"><span className="runtime-dot" />{overallState} · {connectedCount}/3 sources</div>
+          <div className={`runtime-indicator is-${overallState.toLowerCase()}`} role="status"><span className="runtime-dot" />{overallState} · {connectedCount}/3 sources</div>
           <span>{refreshing ? 'Refreshing data…' : snapshot.refreshedAt ? `Updated ${snapshot.refreshedAt.toLocaleTimeString()}` : 'Waiting for data'}</span>
         </div>
       </div>
@@ -105,10 +105,10 @@ function Engineering() {
 
       <div className="engineering-grid">
         <section className="engineering-panel engineering-health">
-          <div className="engineering-panel-header"><div><span className="eyebrow">SYSTEM HEALTH</span><h2>Connected services</h2></div><span className="panel-status"><span className="panel-status-dot" />{overallState}</span></div>
+          <div className="engineering-panel-header"><div><span className="eyebrow">SYSTEM HEALTH</span><h2>Connected services</h2></div><span className={`panel-status is-${overallState.toLowerCase()}`} role="status"><span className="panel-status-dot" />{overallState}</span></div>
           <div className="health-overview">
             <div className="health-score"><strong>{connectedCount}/3</strong><span>Sources responding</span></div>
-            <div className="health-services">{services.map((service) => <div className="health-service" key={service.name}><div><span>{service.name}</span><small>{service.detail}</small></div>{service.state === 'connected' ? <CheckCircle2 size={16} /> : <span>{stateLabel(service.state)}</span>}</div>)}</div>
+            <div className="health-services">{services.map((service) => <div className={`health-service is-${service.state}`} key={service.name}><div><span>{service.name}</span><small>{service.detail}</small></div>{service.state === 'connected' ? <CheckCircle2 size={16} aria-label="Connected" /> : <span>{stateLabel(service.state)}</span>}</div>)}</div>
           </div>
         </section>
 

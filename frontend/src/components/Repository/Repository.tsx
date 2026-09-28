@@ -45,6 +45,9 @@ function Repository() {
   const connectionLabel = repository
     ? error ? 'Connection issue · showing last data' : refreshing ? 'Refreshing' : 'Connected'
     : loading ? 'Connecting' : 'Unavailable'
+  const connectionState = repository
+    ? error ? 'degraded' : 'connected'
+    : loading ? 'checking' : 'unavailable'
   const latestChanges = repository?.latest_commit_changes
 
   return (
@@ -53,10 +56,10 @@ function Repository() {
         <div>
           <span className="eyebrow">REPOSITORY INTELLIGENCE</span>
           <h1>Repository</h1>
-          <p>Inspect remote repository state, recent commits, branches, and engineering evidence used during AI-powered investigations.</p>
+          <p>Inspect the connected repository, recent commits, branches, and source changes available to incident investigations.</p>
         </div>
         <div className="repository-header-actions">
-          <div className="repository-status">
+          <div className={`repository-status is-${connectionState}`} role="status">
             <span className="repository-status-dot" />
             <div><span>GitHub connection</span><strong>{connectionLabel}</strong></div>
           </div>
