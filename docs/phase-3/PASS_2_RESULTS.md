@@ -1,0 +1,38 @@
+# Completion Pass 2 results — 1 October 2026
+
+Substantial Pass 2 implementation is delivered in the working tree, preserving the existing application and Pass 1 journey. This is not a claim that every Pass 2 acceptance criterion or Phase 3 is complete. Starting tree was clean at `2ee9e2a`; no commit/push, production deploy, real PR, Azure mutation, paid provisioning or secret-file change occurred.
+
+## Implemented and fixture-tested
+
+- Genuine GitHub adapter calls for workflow/jobs, bounded redacted logs with safe credential-free signed redirects, commit patches, PR files/reviews/check suites and deployment statuses. Existing reads/pagination/error boundaries remain. Missing logs/patches are explicit.
+- Separate persisted/deduplicated authenticated EngineeringSignal records, manual create/attach and canonical durable investigation. GitHub HMAC verifies raw bytes. Azure common alerts require a dedicated authenticated trusted relay and exact resource scope. Opt-in severity/correlation policy and bounded optional GitHub polling are default-off.
+- Immutable incident/run EngineeringEvidence and explicit direct/potential relationship labels. Collector retains original trigger, bounded failed jobs/logs, referenced commit/deployment and configured Azure observations. Agents receive bounded provenance-labeled untrusted excerpts; existing three-agent execution/outbox/leases/recovery stay intact.
+- Actual evidence collection and Python GitHub/Azure/Foundry tool timings/outcomes, sanitized errors, actual model deployment/usage when returned. No inferred costs. Python tool events are buffered until stage completion rather than streamed during each synchronous provider call.
+- Exact allowlisted resource metric discovery and supported metrics with units/aggregation/missing values; configured App Insights request/exception/dependency and Log Analytics diagnostic/event templates. No arbitrary KQL/URLs or destructive operations.
+- Actual backend-retrieved Azure Monitor baseline/current comparisons stored separately from human verification. Explicit criteria, compatible units/aggregation, complete ordered equal-duration five-minute windows and explainable passed/failed/inconclusive. Empty/missing/unavailable evidence never passes. No measured outcome automatically resolves.
+- Real local Ollama embedding API contract, validated dimension/model metadata, Mongo vector storage/cosine search, source provenance, reindex/delete, compatible-index checks and explicitly labeled lexical fallback. No synthetic production embeddings, weight download, separate vector database or paid search requirement.
+- Default-off reviewed explicit file-change workflow: current approved linked proposal/review, actor/session/CSRF, repository/base/path/sensitive-file/secret/size gates, actual full-file diff/hash, dedicated branch/tree/commit and draft PR, durable claims/retry reconciliation. Reads refresh real PR checks/reviews. Automated tests mock all external writes.
+- Existing Repository, Engineering, Azure/Foundry, Agents, Incident Workspace, Knowledge and Actions integrate the new data/controls. Existing CSS/editorial palette preserved. Workspace redundant polling reduced; browser tests isolate configured actors without weakening the production limiter.
+
+## Verification
+
+Baseline rerun: 39 Node passed, one optional configured-Mongo test skipped; 9 Python passed; both original browser E2E passed (32.2 seconds). Sandbox loopback/network failures were rerun with explicit permission. Final exact totals and commands are in TEST_RESULTS.md.
+
+Final verification: 53 Node passed/one optional skip, 11 Python passed, three Chrome E2E passed, TypeScript/Vite build, lint and diff checks passed. Local tests include actual isolated MongoDB/API/worker, signed duplicate/out-of-order signals, durable investigation evidence retention, opt-in automatic correlation, Mongo vector provenance/model compatibility/reindex/delete, approved mocked draft PR creation/sequential retry and invalid confirmation/approval/policy cases. Python tests cover actual ordered stages, untrusted provenance and bounded context-local tool/real returned usage metadata. Browser integration uses test-only deterministic provider vectors/telemetry; it does not validate cloud or real model quality.
+
+Live read-only verified: GitHub repository/main metadata and 12 commits; one workflow/three runs; PR/deployment sections available with no returned records. Azure ARM inventory returned ten resources, untruncated. No failure was present in the returned live GitHub page, so failed-job log retrieval was not live-verified. New metrics/App Insights/Log Analytics and genuine local model are not configured. GitHub writes were not executed. No mocked response is classified as live.
+
+## External configuration
+
+See DEPLOYMENT.md and `.env.example`: least-privilege read identities, strong webhook/relay secrets, exact Azure resource scopes and app/workspace IDs, separately installed genuine embedding model/dimension, and separately reviewed write credential/repository/base/path policy. Existing Foundry and Mongo/session prerequisites remain. No production cloud resource is automatically created.
+
+## Incomplete acceptance and continuation
+
+1. Complete the provider fault matrix: webhook flood/reused-delivery-ID audit, cross-bucket automatic-creation concurrency, polling/deployment failure tests, transient Azure authentication/query timeouts/429/unsupported-dimension tests, interrupted draft PR requests/lost replies/expired claims/current approval races, and model-index outage/large corpus cases. Existing tests are meaningful but do not cover every enumerated scenario in the brief.
+2. Run real failed GitHub log retrieval when such history exists; configure scoped Azure diagnostic resources and verify live metric/query semantics; install/configure a genuine local model and verify semantic relevance with actual embeddings. External absence is not a successful verification.
+3. Extend measured evaluation beyond Azure Monitor to explicit GitHub workflow/PR/deployment and App Insights criteria; connect findings/evidence directly to accepted proposal source selections. Current diagnostic queries and PR status retrieval are real adapters but are not generic verification algorithms.
+4. Broaden normalized correlation to service/operation/correlation IDs, historical incidents and explicit topology mappings. Current collection uses linked signals/provider IDs, not inferred cross-system causation. Add retention/archival, scalable source pagination, delivery auditing and failed automatic-policy reconciliation beyond delivery replay/manual retry.
+5. Strengthen trusted Azure ingress with managed identity/JWT relay validation, independent injection/security review, OpenTelemetry export and all-page responsive/accessibility checks. Current bearer relay must be secured/configured externally; it is not Entra ingress. No new agents are required.
+6. Reviewed PR support currently changes existing bounded text files and uses full-file diffs; no create/delete/binary/executable-mode handling or autonomous patch generation. Do not enable production writes until cross-service fault/race validation and independent review. UI supports one provided file; backend allows five.
+
+Exact continuation: checkpoint 8 acceptance-gap closure, with checkpoint 4 additional verification providers and checkpoint 3 broader correlation still incomplete. These are Pass 2 work, not silently deferred as frontend polish. Later passes should focus on enterprise governance, full design/accessibility, deployment/scale and product polish after these gaps close.

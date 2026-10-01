@@ -1,27 +1,13 @@
 # Phase 3 progress — 1 October 2026
 
-Completion Pass 1 implements the focused unified incident journey. The broader Phase 3 remains incomplete. Initial tree was clean at committed checkpoint `59b0df2`; existing work/history were preserved. Changes remain reviewable in the working tree, with no commit/push, provisioning or secret edits during this pass.
+Pass 1 is preserved. Pass 2 now has substantial evidence/integration functionality and remains incomplete against the complete requested acceptance/fault matrix. No claim that Phase 3 is finished. The clean committed starting checkpoint was `2ee9e2a`; changes remain uncommitted/unpushed for review. No private credential edits, real external writes, cloud provisioning or production deployment.
 
-## Delivered
+Implemented: authenticated independent signals; bounded GitHub failure/commit/deployment/PR evidence; scoped Azure metric/template diagnostics; retained run-specific evidence and actual tool/model-response telemetry; measured Azure Monitor comparisons; genuine local embedding adapter/Mongo vectors with explicit lexical fallback; default-off approved reviewed draft-PR workflow and status reads; integration in existing pages. Canonical lifecycle/outbox/leased execution, stage events, SSE/polling, review/proposal/manual verification/resolution/reopening/report learning and sessions/CSRF remain.
 
-Existing IncidentWorkflow is authoritative; Incident.status is a CAS/version-fenced projection. Central lifecycle adoption and repair replace contradictory route/button writes. Durable idempotent creation/reinvestigation, worker/outbox reconciliation, real Python stage events/timing and reconnecting authenticated Fetch SSE are integrated. Findings review governs linked owned editable proposals and approver decisions. Approved external manual work, human verification outcomes, deliberate resolution/reopening, report approval/indexing and chronological history persist. Legacy outputs and unlinked proposals remain historical without bypassing current review.
+Baseline reproduced: 39 Node passed/one optional skip, 9 Python passed, two original Chrome journeys passed. Final verification: 53 Node passed/one optional skip, 11 Python passed, three Chrome E2E passed, frontend TypeScript/Vite build/lint and diff checks passed. Final results and scope: TEST_RESULTS.md; delivered implementation/configuration/limits: PASS_2_RESULTS.md. Live read-only GitHub metadata/activity and Azure inventory succeeded; no failed workflow in returned live sample. Azure telemetry and genuine local model are not configured. All writes stayed mocked/default-off.
 
-HttpOnly server sessions with CSRF, production Secure cookies, expiry/credential-rotation checks and global sign-in restore through navigation/refresh. Stable `/incidents/:id` paths support back/forward, direct load and explicit invalid/unauthorized states. Run/proposal pagination exposes older records. The existing dark editorial styling is retained.
+## Exact continuation checkpoint
 
-## Verification
+Checkpoint 8: close the enumerated provider/security/fault acceptance gaps in PASS_2_RESULTS.md before claiming Pass 2 finished. Checkpoint 4 still needs GitHub/App Insights verification criteria; checkpoint 3 needs richer service/operation/historical correlation. Configure and live-verify scoped telemetry and a genuine local embedding model; retrieve live failed-job evidence when available. Complete lost-reply/claim-expiry/current-approval-race PR validation before enabling any production write policy. Add retention/delivery auditing and managed Azure ingress. Preserve existing data/history and rerun the existing suites.
 
-Baseline: 36 Node tests passed with one optional Mongo test skipped; 7 Python tests passed; frontend type/build/lint passed. Final suite adds isolated real MongoDB/API/worker tests, killed-worker recovery, history pagination, sessions and full journey. Real Chrome E2E passed twice after final session/SSE changes, including review/proposal/manual work, failed/inconclusive/passed observations, resolution/learning/reopening, duplicate clicks, navigation/refresh/bookmarks, rejection/cancellation/expiry. Exact final counts and limitations are in TEST_RESULTS.md. Desktop/mobile workspace screenshots inspected; this is not an all-page visual regression or accessibility certification.
-
-## Remaining boundaries
-
-Live Foundry/GitHub/Azure calls require external identity/configuration and were not executed in this pass. Remote execution is disabled. Manual observations cannot certify Azure recovery. Production hosting/deployment/Docker were not tested. Auth uses configured roles rather than Entra/per-workspace permissions. History is stored in one workflow document; retention/archival, incident/action listing beyond existing 500 cap, scalable projection repair and SSE reconnect stress remain future work. Full original Phase 3 line-by-line repository audit and all-page design acceptance remain unfinished; this pass audited relevant lifecycle entry points and preserved unrelated read-only integration tests.
-
-## Proposed subsequent scope
-
-Completion Pass 2: richer Azure Monitor/App Insights/log/trace correlation, GitHub failure/deployment evidence, operational Signals and genuine topology/tool telemetry, automated verification measurements with provenance.
-
-Completion Pass 3: Entra/OIDC and tenant/workspace authorization, organization approval policy, reviewed patch/draft-PR adapter with explicit write governance, semantic retrieval and evals, audit retention.
-
-Completion Pass 4: remaining page/command-palette work, broader accessibility/visual/browser matrix, deployment/IaC and Docker smoke, production hardening, scale/chaos validation and full Phase 3 acceptance review.
-
-These allocations are proposed continuation boundaries, not claims that earlier pass specifications were completed. Next work should start by reviewing PASS_1_RESULTS.md and the current diff, preserving this implementation.
+Final frontend/product polish, enterprise identity/governance, accessibility/visual matrix, deployment and scale remain subsequent work. Missing Pass 2 functionality is explicitly retained as Pass 2 continuation, not renamed as later-pass polish.

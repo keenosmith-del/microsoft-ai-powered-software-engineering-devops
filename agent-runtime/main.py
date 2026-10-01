@@ -257,6 +257,8 @@ def analyse_stream(request: EngineeringProblem):
         for stage in ['software-engineering', 'incident-investigation', 'engineering-action']:
             started = time.monotonic()
             yield json.dumps({'stage': stage, 'status': 'running', 'at': datetime.now(timezone.utc).isoformat()}) + '\n'
+            from tool_telemetry import begin, finish
+            token = begin()
             try:
                 if stage == 'software-engineering':
                     output = SoftwareEngineeringAgent().analyse(problem)
@@ -267,8 +269,14 @@ def analyse_stream(request: EngineeringProblem):
                     output = EngineeringActionAgent().recommend(incident=problem, investigation=investigation)
                 if not isinstance(output, str) or not output.strip() or len(output) > 200000:
                     raise ValueError('Invalid stage output')
+                for invocation in finish(token):
+                    yield json.dumps({**invocation, 'stage': stage}) + '\n'
+                token = None
                 yield json.dumps({'stage': stage, 'status': 'completed', 'at': datetime.now(timezone.utc).isoformat(), 'elapsedMs': round((time.monotonic() - started) * 1000), 'output': output}) + '\n'
             except Exception:
+                if token is not None:
+                    for invocation in finish(token):
+                        yield json.dumps({**invocation, 'stage': stage}) + '\n'
                 yield json.dumps({'stage': stage, 'status': 'failed', 'at': datetime.now(timezone.utc).isoformat(), 'elapsedMs': round((time.monotonic() - started) * 1000), 'error': 'Agent stage failed'}) + '\n'
                 return
 

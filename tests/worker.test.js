@@ -44,3 +44,14 @@ test('overlapping ticks cannot claim concurrent work in the same worker', async 
     await Promise.all([worker.tick(), worker.tick()]);
     assert.equal(calls, 1);
 });
+test('heartbeat renews a real waiting runtime lease without depending on stage telemetry', async t => {
+    t.mock.timers.enable({ apis: ['setInterval'] });
+    const f = fixture(); let release, signal;
+    let notify; const reached = new Promise(resolve => { notify = resolve; });
+    const worker = createInvestigationWorker({ ...f, owner: 'heartbeat-test', fetcher: async (_url, options) => { signal = options.signal; notify(); return new Promise(resolve => { release = () => resolve(require('./runtimeFixture')()); }); } });
+    const pending = worker.tick(); await reached;
+    t.mock.timers.tick(15000); await Promise.resolve(); await Promise.resolve();
+    assert.ok(f.writes.some(w => w.update.$set?.leaseUntil && w.filter.leaseOwner === 'heartbeat-test'));
+    assert.equal(signal.aborted, false); release(); await pending;
+    assert.ok(f.writes.some(w => w.update.$set?.status === 'completed'));
+});

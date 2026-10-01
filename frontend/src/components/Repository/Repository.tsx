@@ -6,6 +6,8 @@ import {
   type RepositoryData,
 } from '../../services/api'
 import './Repository.css'
+import Signals from '../Signals/Signals'
+import { captureGitHubFailure, getJobLog } from '../../services/api'
 
 function Repository() {
   const [branch, setBranch] = useState('')
@@ -13,6 +15,8 @@ function Repository() {
   const [activity, setActivity] = useState<RepositoryActivity | null>(null)
   const [activityError, setActivityError] = useState('')
   const [jobs, setJobs] = useState<RepositoryJobs | null>(null)
+  const [log, setLog] = useState('')
+  const [captureError, setCaptureError] = useState('')
   const [jobsError, setJobsError] = useState('')
   const [selectedRun, setSelectedRun] = useState<number | null>(null)
   const controller = useRef<AbortController | null>(null)
@@ -115,15 +119,16 @@ function Repository() {
         {activity && <>
           <div className="evidence-list">{activity.workflows.items?.map(item => <div key={item.id}><a href={item.html_url} target="_blank" rel="noreferrer">{item.name}</a><strong>{item.state}</strong></div>)}</div>
           {activity.workflows.error && <p>{activity.workflows.error}</p>}
-          <div className="commit-list">{activity.runs.items?.map(run => <article className="commit-row" key={run.id}><div className="commit-content"><a href={run.html_url} target="_blank" rel="noreferrer">{run.name}</a><div className="commit-meta">{run.head_branch} · {run.head_sha.slice(0, 7)} · {run.conclusion || run.status} · {new Date(run.created_at).toLocaleString()}</div></div><button onClick={() => void selectRun(run.id)}>Inspect jobs</button></article>)}</div>
+          <div className="commit-list">{activity.runs.items?.map(run => <article className="commit-row" key={run.id}><div className="commit-content"><a href={run.html_url} target="_blank" rel="noreferrer">{run.name}</a><div className="commit-meta">{run.head_branch} · {run.head_sha.slice(0, 7)} · {run.conclusion || run.status} · {new Date(run.created_at).toLocaleString()}</div></div><button onClick={() => void selectRun(run.id)}>Inspect jobs</button>{['failure', 'timed_out', 'action_required'].includes(run.conclusion || '') && <button onClick={() => void captureGitHubFailure(run.id).then(() => { setCaptureError('Failure signal retained. Refresh signals below to create or attach an incident.') }).catch(e => setCaptureError(e.message))}>Capture failure signal</button>}</article>)}</div>
           {activity.runs.error && <p>{activity.runs.error}</p>}
           {activity.runs.items?.length === 0 && <p>No workflow runs returned for this branch and page.</p>}
-          {selectedRun && <div className="evidence-list"><h3>Jobs for run {selectedRun}</h3>{jobsError && <p role="alert">{jobsError}</p>}{!jobs && !jobsError && <p>Loading jobs…</p>}{jobs?.items.map(job => <div key={job.id}><a href={job.html_url} target="_blank" rel="noreferrer">{job.name}</a><strong>{job.conclusion || job.status}</strong><span>{job.steps.filter(step => step.conclusion === 'failure').map(step => step.name).join(', ')}</span></div>)}{jobs?.items.length === 0 && <p>No jobs returned.</p>}{jobs?.hasNext && <p>First 30 jobs shown; open the run on GitHub for remaining jobs.</p>}</div>}
+          {selectedRun && <div className="evidence-list"><h3>Jobs for run {selectedRun}</h3>{jobsError && <p role="alert">{jobsError}</p>}{!jobs && !jobsError && <p>Loading jobs…</p>}{jobs?.items.map(job => <div key={job.id}><a href={job.html_url} target="_blank" rel="noreferrer">{job.name}</a><strong>{job.conclusion || job.status}</strong><span><button onClick={() => void getJobLog(job.id).then(v => setLog(`${v.truncated ? 'Truncated excerpt\n' : ''}${v.content}`)).catch(e => setLog(e.message))}>Inspect available logs</button><span>{job.steps.filter(step => step.conclusion === 'failure').map(step => step.name).join(', ')}</span></span></div>)}{jobs?.items.length === 0 && <p>No jobs returned.</p>}{jobs?.hasNext && <p>First 30 jobs shown; open the run on GitHub for remaining jobs.</p>}</div>}
           <h3>Pull requests</h3>{activity.pulls.error && <p>{activity.pulls.error}</p>}<div className="evidence-list">{activity.pulls.items?.map(pr => <div key={pr.number}><a href={pr.html_url} target="_blank" rel="noreferrer">#{pr.number} {pr.title}</a><strong>{pr.state}</strong></div>)}</div>{activity.pulls.items?.length === 0 && <p>No pull requests returned.</p>}
           <h3>Deployment records</h3>{activity.deployments.error && <p>{activity.deployments.error}</p>}<div className="evidence-list">{activity.deployments.items?.map(deployment => <div key={deployment.id}><span>{deployment.environment} · {deployment.sha.slice(0, 7)}</span><strong>{new Date(deployment.created_at).toLocaleString()}</strong></div>)}</div>{activity.deployments.items?.length === 0 && <p>No deployment history returned.</p>}
-          <button disabled title="Requires the additive durable investigation backend">Launch investigation</button><p>Investigation launch is unavailable until durable execution and evidence-context validation are implemented.</p>
+          <p role="status">{captureError}</p>{log && <details open><summary>Available job log evidence</summary><pre>{log}</pre></details>}
         </>}
       </section>
+      <Signals />
       <section className="repository-overview">
         <article className="repository-metric">
           <span className="repository-metric-label">REPOSITORY</span>

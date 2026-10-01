@@ -1,3 +1,4 @@
+from tool_telemetry import observe, record
 import os
 from evidence_context import SAFETY_INSTRUCTION
 
@@ -41,8 +42,13 @@ class FoundryClient:
             api_key=token_provider,
         )
 
+    @observe('foundry.chat')
     def chat(self, prompt: str) -> str:
 
+        import time
+        from datetime import datetime, timezone
+        at = datetime.now(timezone.utc).isoformat()
+        started = time.monotonic()
         response = self.client.chat.completions.create(
             model=self.deployment,
             messages=[
@@ -54,6 +60,14 @@ class FoundryClient:
             ],
             max_completion_tokens=12000,
         )
+
+        usage = getattr(response, 'usage', None)
+        counts = {}
+        for field, key in [('prompt_tokens', 'inputTokens'), ('completion_tokens', 'outputTokens'), ('total_tokens', 'totalTokens')]:
+            value = getattr(usage, field, None)
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                counts[key] = value
+        record('foundry.model-response', at, time.monotonic() - started, 'available', deployment=self.deployment, **counts)
 
         if not response.choices:
             raise RuntimeError(

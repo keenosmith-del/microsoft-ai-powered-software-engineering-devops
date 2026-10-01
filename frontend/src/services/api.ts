@@ -124,6 +124,7 @@ export async function analyseIncident(
 }
 
 export type Incident = {
+  workflow?: IncidentWorkflow
   _id: string
   title: string
   description: string
@@ -261,6 +262,7 @@ export type InvestigationRun = {
   currentStage: string; attempts: number; deployment?: string; correlationId: string
   createdAt: string; startedAt?: string; completedAt?: string; elapsedMs?: number; error?: string
   result?: { analysis: string; investigation: string; actions: string }
+  toolActivity?: { name: string; deployment?: string; inputTokens?: number; outputTokens?: number; totalTokens?: number; at: string; durationMs: number; outcome: string; error?: string }[]
   events: { id: number; status: string; stage: string; at: string; detail: string; elapsedMs?: number }[]
 }
 export function getInvestigationRuns(token: string, page: number, signal?: AbortSignal, incidentId?: string) {
@@ -272,7 +274,7 @@ export function submitInvestigation(token: string, incidentId: string, key: stri
 export function cancelInvestigation(token: string, runId: string) {
   return request<InvestigationRun>(`/api/investigations/${runId}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
 }
-export type KnowledgeSource = { _id: string; title: string; sourceUrl?: string; indexedAt: string; method: string }
+export type KnowledgeSource = { _id: string; title: string; sourceUrl?: string; indexedAt: string; method: string; embeddingStatus?: string; embeddingModel?: string }
 export type KnowledgeHit = { documentId: string; title: string; sourceUrl: string | null; indexedAt: string; section: string; ordinal: number; text: string; score: number; method: string }
 export function listKnowledge(token: string) {
   return request<{ workspace: string; method: string; items: KnowledgeSource[]; hasNext: boolean }>('/api/knowledge', { headers: { Authorization: `Bearer ${token}` } })
@@ -281,7 +283,7 @@ export function ingestKnowledge(token: string, title: string, text: string, sour
   return request('/api/knowledge', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ title, text, ...(sourceUrl ? { sourceUrl } : {}) }) })
 }
 export function searchKnowledge(token: string, query: string) {
-  return request<{ method: string; truncated: boolean; results: KnowledgeHit[] }>(`/api/knowledge/search?q=${encodeURIComponent(query)}`, { headers: { Authorization: `Bearer ${token}` } })
+  return request<{ method: string; fallbackReason?: string; truncated: boolean; results: KnowledgeHit[] }>(`/api/knowledge/search?q=${encodeURIComponent(query)}`, { headers: { Authorization: `Bearer ${token}` } })
 }
 export function deleteKnowledge(token: string, id: string) {
   return request(`/api/knowledge/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
@@ -362,3 +364,26 @@ export async function watchRun(runId: string, signal: AbortSignal, onEvent: () =
   await new Promise<void>(resolve => { const timer = window.setTimeout(resolve, 1500); signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true }) })
  }
 }
+
+export type EngineeringSignal = { signalId: string; provider: string; type: string; severity: string; summary: string; observedAt: string; state: string; incidentId?: string; references: { sourceUrl: string } }
+export type EngineeringEvidence = { evidenceId: string; runId?: string; provider: string; type: string; content: string; relationship: string; sourceUrl: string; retrievedAt: string; truncated: boolean }
+export function getSignals() { return request<{ items: EngineeringSignal[]; hasNext: boolean }>('/api/signals') }
+export function captureGitHubFailure(id: number) { return request<EngineeringSignal>(`/api/signals/github/runs/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) }
+export function associateSignal(id: string, incidentId?: string, investigate = false) { return request<Incident>(`/api/signals/${id}/incident`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(incidentId ? { incidentId } : {}), investigate }) }) }
+export function getOperationalEvidence(id: string) { return request<{ items: EngineeringEvidence[]; truncated: boolean }>(`/api/evidence/incidents/${id}`) }
+export function getJobLog(id: number) { return request<{ content: string; truncated: boolean }>(`/api/repository/jobs/${id}/logs`) }
+export type AzureMeasurement = { status: string; unit: string; aggregation: string; metric: string; resourceId: string; missingData: boolean; observations: { timestamp: string; value: number | null }[]; sourceUrl: string; retrievedAt: string }
+export function metricDefinitions(resourceId: string) { return request<{ status: string; items: { name: string; unit: string; aggregations: string[] }[] }>(`/api/azure/metric-definitions?resourceId=${encodeURIComponent(resourceId)}`) }
+export function queryMetrics(body: unknown) { return request<AzureMeasurement>('/api/azure/metrics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) }
+export function queryDiagnostics(body: unknown) { return request<{ status: string; tables: { columns: { name: string }[]; rows: unknown[][] }[]; truncated: boolean }>('/api/azure/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) }
+export type MeasuredVerification = { _id: string; changeId: string; evaluatedAt: string; baseline: AzureMeasurement; comparison: AzureMeasurement; evaluation: { outcome: string; reason: string; before?: number; after?: number; difference?: number; threshold?: number; unit?: string } }
+export function getMeasurements(id: string) { return request<{ items: MeasuredVerification[] }>(`/api/verification/incidents/${id}`) }
+export function measureVerification(id: string, body: unknown) { return request<MeasuredVerification>(`/api/verification/incidents/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) }
+export type ChangeIntent = { _id: string; hash: string; diff: string; state: string; prUrl?: string }
+export function getChangeIntents(proposalId: string) { return request<{ enabled: boolean; items: ChangeIntent[] }>(`/api/github-changes/proposals/${proposalId}`) }
+export function prepareChange(proposalId: string, body: unknown, key: string) { return request<ChangeIntent>(`/api/github-changes/proposals/${proposalId}/prepare`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: JSON.stringify(body) }) }
+export function confirmChange(intent: ChangeIntent) { return request<{ url: string }>(`/api/github-changes/${intent._id}/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: true, hash: intent.hash }) }) }
+
+export function reindexKnowledge(id: string) { return request(`/api/knowledge/${id}/reindex`, { method: 'POST' }) }
+
+export function refreshChangeStatus(id: string) { return request(`/api/github-changes/${id}/status`) }

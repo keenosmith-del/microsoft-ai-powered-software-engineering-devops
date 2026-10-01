@@ -21,6 +21,8 @@ const schema = new mongoose.Schema({
     result: { analysis: String, investigation: String, actions: String },
     error: String,
     retrievalStatus: String,
+    operationalEvidenceIds: [String],
+    toolActivity: [{ _id: false, name: String, stage: String, deployment: String, inputTokens: Number, outputTokens: Number, totalTokens: Number, at: Date, durationMs: Number, outcome: String, error: String }],
     evidenceReferences: [{ _id: false, documentId: String, section: String, ordinal: Number, indexedAt: Date, sourceUrl: String }],
     context: { notes: String },
     cancellation: { requestedBy: String, requestedAt: Date, detail: String },

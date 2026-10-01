@@ -15,7 +15,7 @@ router.get('/', async (req, res, next) => {
 });
 router.post('/', async (req, res, next) => {
     try {
-        const value = ingest(req.body, req.actor);
+        const value = await require('../services/embeddings').indexVectors(ingest(req.body, req.actor));
         const doc = await Document.findOneAndUpdate({ workspace: value.workspace, contentHash: value.contentHash }, { $set: value }, { upsert: true, returnDocument: 'after' });
         res.status(201).json({ id: doc._id, title: doc.title, chunks: doc.chunks.length, indexedAt: doc.indexedAt, method: doc.method });
     } catch (error) { if (error.code === 11000) return res.status(409).json({ error: 'Concurrent duplicate ingestion; refresh indexed sources' }); if (error.status) return res.status(error.status).json({ error: error.message }); next(error); }
@@ -25,6 +25,15 @@ router.get('/search', async (req, res, next) => {
         if (typeof req.query.q !== 'string' || !req.query.q.trim() || req.query.q.length > 500) return res.status(400).json({ error: 'q must be 1–500 characters' });
         res.json(await retrieve(req.query.q));
     } catch (error) { next(error); }
+});
+router.post('/:id/reindex', async (req, res, next) => {
+ try {
+  if (!mongoose.isObjectIdOrHexString(req.params.id)) return res.status(400).json({ error: 'Invalid document ID' });
+  const doc = await Document.findOne({ _id: req.params.id, workspace: workspace() }).lean();
+  if (!doc) return res.status(404).json({ error: 'Document not found' });
+  const value = await require('../services/embeddings').indexVectors({ chunks: doc.chunks.map(c => ({ section: c.section, ordinal: c.ordinal, text: c.text })), method: 'local_lexical' });
+  await Document.updateOne({ _id: doc._id }, { $set: { ...value, indexedAt: new Date() } }); res.json({ id: doc._id, status: value.embeddingStatus, method: value.method });
+ } catch (e) { next(e); }
 });
 router.delete('/:id', async (req, res, next) => {
     try {

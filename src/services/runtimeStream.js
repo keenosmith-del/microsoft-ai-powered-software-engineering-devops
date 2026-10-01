@@ -2,7 +2,7 @@ const names = ['software-engineering', 'incident-investigation', 'engineering-ac
 async function consume(response, onEvent) {
  if (!response.body || !response.headers?.get('content-type')?.includes('application/x-ndjson')) throw Object.assign(new Error('Agent runtime returned invalid structured output'), { permanent: true });
  const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '', bytes = 0, index = 0, running = false;
- const result = {};
+ const result = {}; let toolCount = 0;
  try {
   while (true) {
    const { done, value } = await reader.read();
@@ -13,6 +13,13 @@ async function consume(response, onEvent) {
    while ((newline = buffer.indexOf('\n')) >= 0) {
     const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1); if (!line.trim()) continue;
     const event = JSON.parse(line);
+    if (event.kind === 'tool') {
+     if (!running || event.stage !== names[index] || ++toolCount > 120 || typeof event.name !== 'string' || event.name.length > 100 || !/^[a-z0-9.-]+$/.test(event.name) || !['available', 'unavailable'].includes(event.outcome) || !Number.isInteger(event.durationMs) || event.durationMs < 0 || !Number.isFinite(Date.parse(event.at))) throw new Error('Invalid runtime tool telemetry');
+     const metadata = {};
+     if (typeof event.deployment === 'string' && event.deployment.length <= 200) metadata.deployment = event.deployment;
+     for (const key of ['inputTokens', 'outputTokens', 'totalTokens']) if (Number.isSafeInteger(event[key]) && event[key] >= 0) metadata[key] = event[key];
+     await onEvent({ ...metadata, kind: 'tool', name: event.name, stage: event.stage, outcome: event.outcome, at: event.at, durationMs: event.durationMs, ...(event.outcome === 'unavailable' ? { error: 'Provider tool failed; details redacted' } : {}) }); continue;
+    }
     if (event.stage !== names[index] || !['running', 'completed', 'failed'].includes(event.status) || !Number.isFinite(Date.parse(event.at))) throw new Error('Invalid runtime stage sequence');
     if (event.status === 'running') { if (running) throw new Error('Duplicate stage start'); running = true; }
     else {

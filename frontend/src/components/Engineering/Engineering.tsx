@@ -1,3 +1,4 @@
+import Signals from '../Signals/Signals'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Activity, AlertTriangle, CheckCircle2, Server, Terminal } from 'lucide-react'
 import { getEngineeringOverview, type EngineeringOverview } from '../../services/api'
@@ -72,6 +73,7 @@ function Engineering() {
         <section className="engineering-panel"><div className="engineering-panel-header"><div><span className="eyebrow">ACTIVITY</span><h2>Recent incident updates</h2></div></div>{snapshot?.dataError ? <p>{snapshot.dataError}</p> : <div className="engineering-context-list">{snapshot?.activity.map(item => <div key={item._id}><span>{item.title}</span><strong>{item.status} · {new Date(item.updatedAt).toLocaleString()}</strong></div>)}{snapshot && snapshot.activity.length === 0 && <p>No persisted activity</p>}</div>}</section>
         <section className="engineering-panel"><div className="engineering-panel-header"><div><span className="eyebrow">DATA COVERAGE</span><h2>Available context</h2></div><Terminal size={17} /></div><div className="engineering-context-list"><div><span>Incident history</span><strong>{metric(snapshot?.metrics.totalIncidents)}</strong></div><div><span>Investigation execution history</span><strong>{metric(snapshot?.metrics.completedInvestigations)} completed · {metric(snapshot?.metrics.failedInvestigations)} failed</strong></div><div><span>Snapshot cache</span><strong>{snapshot ? `${snapshot.cacheTtlMs / 1000} seconds` : 'Unknown'}</strong></div></div></section>
       </div>
+      <Signals />
     </section>
   )
 }

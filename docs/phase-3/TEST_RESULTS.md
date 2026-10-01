@@ -22,3 +22,18 @@ MongoMemoryServer used installed mongod 8.2.7; its expected-version warning (8.2
 ## Limits
 
 No live cloud inference, external remediation, production deployment, Docker smoke, full multi-browser/accessibility audit, large-data load, SSE disconnect stress or enterprise identity integration was verified. Existing read-only Azure/GitHub/Foundry/knowledge tests passed; all unrelated pages were not manually rechecked. No claim that the broader Phase 3 is complete.
+
+## Completion Pass 2 verification — 1 October 2026
+
+Starting committed checkpoint `2ee9e2a`, clean tree. Baseline reproduced: 40 Node total, 39 passed, one optional Mongo skip; 9 Python passed; two original Chrome E2E passed (32.2s). Initial sandbox runs failed on loopback binding; authorized runs passed. The optional independently configured Mongo test stayed skipped; real isolated local Mongo integration was executed.
+
+Final commands use `/Users/keenosmith/.nvm/versions/node/v24.14.1/bin` on PATH:
+
+- `node --test tests/*.test.js`: 54 total, 53 passed, zero failed, one optional configured-Mongo skip (2.35 seconds). Covers retained signal/run evidence, auth/signature/scopes/duplicate ordering, automatic correlation, Mongo vector citations/model compatibility/reindex/delete, mocked draft PR current approval/confirmation/idempotency and existing lifecycle/process-recovery tests.
+- `(cd agent-runtime && .venv/bin/python -m unittest discover -p 'test_*.py')`: 11 passed. Existing nine plus actual bounded/sanitized context-local tool telemetry and returned provider usage metadata. No live Foundry inference or model-resistance claim.
+- `npm --prefix frontend run build`: TypeScript/Vite passed with Node 24.14.1. `npm --prefix frontend run lint`: no warnings/errors. `git diff --check`: passed.
+- `npm run test:e2e`: three Chrome tests passed (35.7 seconds on the final run), real isolated Mongo/API/worker/Vite and test-only deterministic external providers. The new journey ingests a signed failure, finds it in Engineering, creates/links/starts the canonical investigation, inspects retained sources/tools, reviews/approves/records a change, retrieves actual backend fixture measurements, inspects a passing comparison without automatic resolution, searches indexed vector provenance, and refreshes the complete history. Existing resolution/reopening/manual-outcome/session/browser journey coverage remains. Model vectors and telemetry are explicit test fixtures, not real cloud or embedding quality tests.
+
+Browser iterations uncovered redundant workspace requests reaching the unchanged 120/min actor limiter; polling now uses canonical incident.workflow rather than a duplicate workflow call and restores role separately. Separate tests use isolated configured actors in the test-only host. Hidden-details assertions were corrected to expand the run. An introduced lease-renewal telemetry edit was caught by source review, fixed, and guarded by a test that advances a waiting runtime past the 15-second heartbeat without aborting it. Earlier failed browser iterations are not presented as passes.
+
+Live safe read-only probes (`scripts/verify-intelligence.js`, `scripts/verify-pass2.js`) were executed with network permission: GitHub main returned 12 commits, one workflow and three runs; PR/deployment histories were available/empty. Azure inventory returned ten resources. Failed-workflow evidence could not be exercised live (no failed run in returned page). New Azure telemetry/app/workspace IDs and local embedding model were not configured; GitHub writes not executed. Docker, production deployment, all-provider fault matrix, all-page visual/accessibility, real model relevance and OpenTelemetry exporter remain unverified. See PASS_2_RESULTS.md for exact acceptance gaps.

@@ -29,7 +29,21 @@ function rank(documents, query, limit = 5) {
 function workspace(env = process.env) { return env.KNOWLEDGE_WORKSPACE || `${env.GITHUB_OWNER || 'local'}/${env.GITHUB_REPOSITORY || 'workspace'}`; }
 async function retrieve(query, env = process.env) {
     const docs = await Document.find({ workspace: workspace(env) }).sort({ indexedAt: -1 }).limit(101).maxTimeMS(3000).lean();
-    return { method: 'local_lexical', indexedDocumentsExamined: Math.min(docs.length, 100), truncated: docs.length > 100, results: rank(docs.slice(0, 100), query) };
+    const { createEmbeddings, cosine } = require('./embeddings');
+    const adapter = createEmbeddings({ env });
+    let fallbackReason = 'Embeddings not configured';
+    if (adapter.configured) {
+        try {
+            const [vector] = await adapter.embed([query]);
+            const compatible = docs.slice(0, 100).filter(d => d.embeddingStatus === 'indexed' && d.embeddingModel === adapter.model && d.embeddingDimension === adapter.dimension);
+            if (compatible.length) {
+                const results = compatible.flatMap(d => d.chunks.map(c => ({ documentId: String(d._id), title: d.title, sourceUrl: d.sourceUrl || null, indexedAt: d.indexedAt, section: c.section, ordinal: c.ordinal, text: c.text, score: cosine(vector, c.vector || []), method: 'local_semantic' }))).filter(v => v.score !== null).sort((a, b) => b.score - a.score).slice(0, 5);
+                return { method: 'local_semantic', embeddingModel: adapter.model, dimension: adapter.dimension, indexedDocumentsExamined: compatible.length, truncated: docs.length > 100, results };
+            }
+            fallbackReason = 'No compatible vector index; reindex sources';
+        } catch { fallbackReason = 'Local embedding model unavailable'; }
+    }
+    return { method: 'local_lexical', fallbackReason, indexedDocumentsExamined: Math.min(docs.length, 100), truncated: docs.length > 100, results: rank(docs.slice(0, 100), query) };
 }
 function ingest(body, actor, env = process.env) {
     if (!body || typeof body.title !== 'string' || !body.title.trim() || body.title.length > 200 || typeof body.text !== 'string' || !body.text.trim() || body.text.length > 100000 || Object.keys(body).some(key => !['title', 'text', 'sourceUrl'].includes(key))) throw Object.assign(new Error('Supply title (1–200 characters), text (1–100000 characters) and optional HTTPS sourceUrl'), { status: 400 });

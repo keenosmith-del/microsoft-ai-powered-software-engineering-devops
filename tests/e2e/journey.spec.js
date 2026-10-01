@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+test.beforeEach(async ({ request }) => { const r = await request.post('http://127.0.0.1:5050/__test/isolate-actors', { data: { label: require('node:crypto').randomUUID() } }); expect(r.status()).toBe(200); });
 const engineer = 'test-engineer-credential-with-at-least-32-characters';
 const approver = 'test-approver-credential-with-at-least-32-characters';
 async function login(page, token) { await page.getByLabel('Operations credential').fill(token); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible(); }

@@ -1,3 +1,4 @@
+from tool_telemetry import observe
 import os
 
 from typing import Any
@@ -42,6 +43,7 @@ class AzureTool:
             )
         )
 
+    @observe('azure.resource-inventory')
     def get_resources(
         self,
         resource_group: str | None = None,

@@ -1,3 +1,4 @@
+from tool_telemetry import observe
 import os
 import sys
 
@@ -41,6 +42,7 @@ class GitHubTool:
                 }
             )
 
+    @observe('github.rest-read')
     def _get(
         self,
         path: str,

@@ -77,7 +77,7 @@ Copy `.env.example` to `.env` and provide configuration for the services you wan
 - **GitHub:** `GITHUB_OWNER`, `GITHUB_REPOSITORY`, optional `GITHUB_TOKEN`, and `GITHUB_DEFAULT_BRANCH`. A token is needed for private repository access and helps avoid unauthenticated API limits.
 - **Frontend:** optional `VITE_API_BASE_URL`, documented in `frontend/.env.example`.
 
-The sample environment file also contains placeholders for Azure AI Search and an embedding deployment. Their presence is configuration scaffolding; the active investigation path does not currently call Azure AI Search or generate embeddings.
+The sample environment file also contains placeholders for Azure AI Search and an embedding deployment. Azure AI Search remains optional scaffolding. Pass 2 can generate genuine local embeddings through a separately installed Ollama model and retain vectors in MongoDB; unavailable configuration falls back explicitly to lexical retrieval.
 
 ### Run locally
 
@@ -123,9 +123,9 @@ The codebase and supporting documentation demonstrate practical work across:
 
 ## Direction and current boundaries
 
-The broader product direction is an engineering operations layer that can correlate code, CI/CD, deployments, operational telemetry, and engineering knowledge, then guide a proposed remediation through validation and human approval. Current code provides a foundation for investigation and recommendation, with repository and Azure resource evidence. The additive Azure adapter also reads bounded Activity Log records; Azure Monitor metrics and Application Insights queries remain unimplemented. Its GitHub integration is read-only; Azure DevOps pipelines and GitHub Actions are not executed by the application.
+The broader product direction is an engineering operations layer that can correlate code, CI/CD, deployments, operational telemetry, and engineering knowledge, then guide a proposed remediation through validation and human approval. Current code provides a foundation for investigation and recommendation, with repository and Azure resource evidence. The Azure adapters read bounded Activity Logs, resource-allowlisted Monitor metrics and fixed Application Insights/Log Analytics queries. GitHub reads workflow/job/deployment/commit evidence; separately configured writes require current approval and explicit reviewed diff confirmation and create draft PRs only. Azure DevOps pipelines and GitHub Actions are not executed by the application.
 
-The following remain unimplemented: vector/semantic search, Azure AI Search indexing/querying, CI/CD and deployment control, automated code changes or pull requests, detailed telemetry/log/trace correlation, measured model evaluation and a production-grade multi-user approval/security policy system. The additive Phase 2 code provides scoped local lexical retrieval, durable run history, read-only CI/CD intelligence and bearer-protected review records. Treat action status in the UI as workflow tracking for recommendations, not proof that an external engineering change was made or verified.
+The following remain incomplete: Azure AI Search indexing/querying, autonomous patch generation, CI/CD/deployment control, broad distributed trace correlation, measured model-quality evaluation and enterprise multi-user governance. Local semantic retrieval, signals/evidence, Azure Monitor measured comparisons and a disabled-by-default reviewed draft-PR adapter are implemented; live verification prerequisites and remaining fault coverage are documented below. The additive Phase 2 code provides scoped local lexical retrieval, durable run history, read-only CI/CD intelligence and bearer-protected review records. Treat action status in the UI as workflow tracking for recommendations, not proof that an external engineering change was made or verified.
 
 ## Further reading
 
@@ -145,3 +145,9 @@ The central incident journey now uses one authoritative IncidentWorkflow with a 
 Sign in through the global Operations access form. HttpOnly server sessions restore across navigation/refresh; `/incidents/:id` bookmarks and browser history work without browser bearer persistence. The development frontend proxies same-origin API requests to 5050. Enable the worker and configure engineer/approver credentials as described in [exact startup commands](docs/phase-3/DEPLOYMENT.md).
 
 Backend, Python, frontend build/lint and real browser journey checks have been run; see [verification evidence](docs/phase-3/TEST_RESULTS.md) and [Pass 1 results](docs/phase-3/PASS_1_RESULTS.md). This focused pass does not complete all Phase 3. Remote execution, Entra SSO, semantic retrieval, richer telemetry correlation and production deployment remain deferred. See [progress](docs/phase-3/PROGRESS.md), [architecture and transitions](docs/phase-3/ARCHITECTURE.md), [API contracts](docs/phase-3/API_REFERENCE.md) and [security](docs/phase-3/SECURITY.md).
+
+## Completion Pass 2 — evidence and operational integrations
+
+Extends the existing canonical incident journey with signed/deduplicated GitHub and authenticated-relay Azure signals, bounded evidence and tool telemetry, allowlisted Azure diagnostics, retained measured verification, local genuine embedding/vector integration and reviewed operator-provided draft PRs. Default startup performs no GitHub writes, polling, automatic incident conversion or model download. Ports remain 5050/8000; use documented Node 24. No new dependencies.
+
+Read [Pass 2 plan](docs/phase-3/PASS_2_PLAN.md), [results and remaining work](docs/phase-3/PASS_2_RESULTS.md), [configuration](docs/phase-3/DEPLOYMENT.md) and [contracts](docs/phase-3/API_REFERENCE.md). Configure a genuine local model separately; fixtures do not verify real embedding quality. See `.env.example` for empty/default-off settings. No private credentials were edited or published.

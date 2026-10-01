@@ -1,5 +1,7 @@
+import OperationalHistory from './OperationalHistory'
+import ReviewedChange from '../Actions/ReviewedChange'
 import { useEffect, useState } from 'react'
-import { getIncident, getIncidentWorkflow, updateIncidentWorkflow, getInvestigationRuns, listProposals, createProposal, reviewProposal, editProposal, cancelInvestigation, indexIncidentReport, restoreSession, watchRun, type Incident, type IncidentWorkflow, type InvestigationRun, type RemediationProposal } from '../../services/api'
+import { getIncident, updateIncidentWorkflow, getInvestigationRuns, listProposals, createProposal, reviewProposal, editProposal, cancelInvestigation, indexIncidentReport, restoreSession, watchRun, type Incident, type IncidentWorkflow, type InvestigationRun, type RemediationProposal } from '../../services/api'
 export default function IncidentWorkspace({ incidentId }: { incidentId: string }) {
  const [incident, setIncident] = useState<Incident | null>(null)
  const [workflow, setWorkflow] = useState<IncidentWorkflow | null>(null)
@@ -14,8 +16,8 @@ export default function IncidentWorkspace({ incidentId }: { incidentId: string }
   let active = true
   const load = async () => {
    try {
-    const [i, w, r, p, session] = await Promise.all([getIncident(incidentId), getIncidentWorkflow('', incidentId), getInvestigationRuns('', runPage, undefined, incidentId), listProposals('', proposalPage, incidentId), restoreSession()])
-    if (active) { setIncident(i); setWorkflow(w); setRuns(r.items); setMoreRuns(r.hasNext); setProposals(p.items); setMoreProposals(p.hasNext); setRole(session.role); setError(''); setLoading(false) }
+    const [i, r, p] = await Promise.all([getIncident(incidentId), getInvestigationRuns('', runPage, undefined, incidentId), listProposals('', proposalPage, incidentId)])
+    if (active) { setIncident(i); setWorkflow(i.workflow || null); setRuns(r.items); setMoreRuns(r.hasNext); setProposals(p.items); setMoreProposals(p.hasNext);  setError(''); setLoading(false) }
    } catch (e) { if (active) { setError(e instanceof Error ? e.message : 'Workspace unavailable'); setLoading(false) } }
   }
   void load(); const timer = window.setInterval(() => void load(), 3000)
@@ -23,6 +25,7 @@ export default function IncidentWorkspace({ incidentId }: { incidentId: string }
   const expired = () => { setIncident(null); setWorkflow(null); setError('Operations session expired or authorization required') }; window.addEventListener('ops-session-expired', expired)
   return () => { active = false; clearInterval(timer); window.removeEventListener('ops-auth-changed', auth); window.removeEventListener('ops-session-expired', expired) }
  }, [incidentId, runPage, proposalPage, revision])
+ useEffect(() => { const restore = () => { void restoreSession().then(s => setRole(s.role)).catch(() => setRole('viewer')) }; restore(); window.addEventListener('ops-auth-changed', restore); return () => window.removeEventListener('ops-auth-changed', restore) }, [])
  const activeRunId = (incident as Incident & { activeRun?: InvestigationRun })?.activeRun?.runId
  useEffect(() => { if (!activeRunId) return; const controller = new AbortController(); void watchRun(activeRunId, controller.signal, () => setRevision(v => v + 1)); return () => controller.abort() }, [activeRunId])
  const execute = async (operation: () => Promise<unknown>) => {
@@ -48,10 +51,11 @@ export default function IncidentWorkspace({ incidentId }: { incidentId: string }
   <button onClick={() => setRevision(v => v + 1)} disabled={busy}>Refresh workspace</button>
   {incident && workflow && <>
    <p data-testid="canonical-status" role="status">{incident.status}</p><p>{incident.service} · {incident.severity} · Revision {workflow.version}</p>
+   <OperationalHistory incidentId={incidentId} canMeasure={stage === 'verify' && canWrite} />
    <h2>Investigation history</h2>
    {activeRunId && <p role="status">Active run {activeRunId}. Live updates use persisted events; polling remains available.</p>}
    {runs.length === 0 && <p>No investigation runs. Legacy outputs, if present, remain below.</p>}
-   {runs.map(run => <details key={run.runId} open={run.runId === activeRunId}><summary>{run.runId} · {run.status} · {run.currentStage}</summary>{run.error && <p>{run.error}</p>}<ol>{run.events.map(event => <li key={event.id}>{event.stage} · {event.status}{event.elapsedMs !== undefined ? ` · ${event.elapsedMs} ms` : ''}</li>)}</ol>{['queued', 'running'].includes(run.status) && <button disabled={busy || !canWrite} onClick={() => void execute(() => cancelInvestigation('', run.runId))}>Cancel investigation</button>}{run.result && Object.entries(run.result).map(([name, value]) => <section key={name}><h3>{name}</h3><pre>{value}</pre></section>)}</details>)}
+   {runs.map(run => <details key={run.runId} open={run.runId === activeRunId}><summary>{run.runId} · {run.status} · {run.currentStage}</summary>{run.error && <p>{run.error}</p>}{run.toolActivity?.map((t, i) => <p key={i}>{t.name} · {t.outcome} · {t.durationMs} ms · {t.at}{t.deployment && ` · ${t.deployment}`}{t.totalTokens !== undefined && ` · ${t.totalTokens} tokens`}{t.error && ` · ${t.error}`}</p>)}<ol>{run.events.map(event => <li key={event.id}>{event.stage} · {event.status}{event.elapsedMs !== undefined ? ` · ${event.elapsedMs} ms` : ''}</li>)}</ol>{['queued', 'running'].includes(run.status) && <button disabled={busy || !canWrite} onClick={() => void execute(() => cancelInvestigation('', run.runId))}>Cancel investigation</button>}{run.result && Object.entries(run.result).map(([name, value]) => <section key={name}><h3>{name}</h3><pre>{value}</pre></section>)}</details>)}
    <p><button disabled={runPage === 1} onClick={() => setRunPage(v => v - 1)}>Previous runs</button> Page {runPage} <button disabled={!moreRuns} onClick={() => setRunPage(v => v + 1)}>Older runs</button></p>
    {incident.analysis && <details><summary>Preserved legacy findings</summary><pre>{incident.analysis}</pre><pre>{incident.investigation}</pre><pre>{incident.actions}</pre></details>}
    <h2>Findings review history</h2>{workflow.reviews.map(review => <details key={review.id}><summary>{review.decision} · {review.runId}</summary>{review.evidence?.map((item, index) => <p key={index}><a href={item.reference} target="_blank" rel="noreferrer">{item.source}</a> · {item.observation}</p>)}</details>)}
@@ -72,6 +76,7 @@ export default function IncidentWorkspace({ incidentId }: { incidentId: string }
    {proposals.map(p => <section key={p._id}><h3>{p.title}</h3><p>{p.owner || 'Unassigned'} · {p.approvalStatus} · Remote execution disabled</p><details><summary>Action and validation</summary><pre>{p.action}</pre><p>{p.rationale}</p><p>{p.validationPlan}</p></details>
     {p.approvalStatus !== 'approved' && <form onSubmit={e => { e.preventDefault(); const fields = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>; void execute(() => editProposal(p, fields)) }}>{(['title', 'owner', 'action', 'rationale', 'validationPlan', 'target'] as const).map(field => <label key={field}>Edit proposal {field}<input name={field} defaultValue={p[field]} required /></label>)}<button disabled={busy || !canWrite}>Save draft changes</button></form>}
     {p.approvalStatus === 'pending' && canApprove && <><button disabled={busy || !notes || !accepted || p.reviewId !== accepted.id} onClick={() => void execute(() => reviewProposal('', p, 'approved', notes))}>Approve proposal</button><button disabled={busy || !notes} onClick={() => void execute(() => reviewProposal('', p, 'rejected', notes))}>Reject proposal</button></>}
+    {p.approvalStatus === 'approved' && <ReviewedChange proposalId={p._id} />}
     {p.approvalStatus === 'approved' && p.reviewId === accepted?.id && ['plan', 'remediate'].includes(stage || '') && <button disabled={busy || !notes || !canWrite} onClick={() => { setProposalId(p._id); void act('start-remediation', { proposalId: p._id }) }}>Begin manual remediation</button>}
    </section>)}
    <p><button disabled={proposalPage === 1} onClick={() => setProposalPage(v => v - 1)}>Previous proposals</button> Page {proposalPage} <button disabled={!moreProposals} onClick={() => setProposalPage(v => v + 1)}>Older proposals</button></p>

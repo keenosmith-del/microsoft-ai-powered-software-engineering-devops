@@ -14,3 +14,15 @@
 The workspace supports recovery paths rather than a rigid wizard. Invalid actions are disabled or rejected by the backend. Conflicts refresh current state while keeping the error visible. Proposal/run pagination, chronological audit, explicit empty/loading/unavailable states and pending-action disabling are wired to persisted APIs. Incident/action legacy shortcut buttons open the workspace; status-only mutation cannot bypass governance.
 
 Bookmarks restore after authentication. Browser back/forward and invalid incident IDs have automated coverage. Expired sessions require signing in again and do not reveal a protected incident. Approver identities can also perform engineering actions; this pass does not implement organizational segregation-of-duty policy.
+
+## Pass 2 operational extension
+
+Configure signed GitHub delivery or an authenticated trusted Azure alert relay. Engineering and Repository now expose actual persisted signals independently from incidents. On Repository, capture an actual completed failure, inspect jobs/redacted available logs, then refresh signals. Create an incident or supply an existing incident ID; Investigate signal attaches evidence before submitting through the existing durable workflow. New run evidence does not overwrite earlier runs. The workspace exposes provider source links, relationship labels, retrieval timestamps, truncation and actual tool activity. Nearby changes are hypotheses, not causation.
+
+Azure/Foundry adds supported metric discovery and bounded measurements plus predefined configured App Insights/Log Analytics queries. Missing scopes/configuration or rows remain explicit. No zero-valued health is inferred.
+
+Keep findings review and proposal approval unchanged. When GitHub write policy is explicitly configured, an approved proposal in Actions/workspace can prepare an operator-provided text change, show its actual full-file diff and require explicit hash confirmation to create a draft PR. Writes are disabled in default local startup. The UI currently supports one file per prepared form; the backend supports up to five. This is reviewed provided content, not autonomous patch generation. The PR still requires external human review and deployment.
+
+After recording actual manual change, measured verification retrieves two explicit Azure Monitor windows. Inspect original observations, units, threshold, difference and reason. Passed measurements do not resolve the incident: record the combined human assessment through existing verification controls and deliberately resolve. GitHub CI-only and App Insights measured comparison algorithms remain incomplete; those sources can be inspected but are not evaluated as Azure recovery.
+
+Knowledge displays vector indexing status and permits reindexing. Search shows real semantic cosine ranking when a configured compatible local model/index exists, or labeled lexical fallback and reason. Full history, reopening, approved report ingestion, bookmarks and session restoration remain the existing journey.

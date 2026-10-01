@@ -23,9 +23,9 @@ router.post('/report/index', async (req, res, next) => {
   if (record?.workflow.stage !== 'resolved' || report?.status !== 'approved') return res.status(409).json({ error: 'Indexing requires an approved report for a resolved workflow' });
   const { ingest } = require('../services/knowledge');
   const Document = require('../models/KnowledgeDocument');
-  const value = ingest({ title: `Incident report ${req.params.id}`, text: `# Incident provenance\nIncident: ${req.params.id}\nReport: ${report.id}\nApproved by: ${report.approvedBy}\nApproved at: ${new Date(report.approvedAt).toISOString()}\n\n${report.content}` }, req.actor);
+  const value = await require('../services/embeddings').indexVectors(ingest({ title: `Incident report ${req.params.id}`, text: `# Incident provenance\nIncident: ${req.params.id}\nReport: ${report.id}\nApproved by: ${report.approvedBy}\nApproved at: ${new Date(report.approvedAt).toISOString()}\n\n${report.content}` }, req.actor));
   const document = await Document.findOneAndUpdate({ workspace: value.workspace, contentHash: value.contentHash }, { $setOnInsert: value }, { upsert: true, returnDocument: 'after' });
-  res.json({ documentId: document._id, reportId: report.id, method: 'local_lexical' });
+  res.json({ documentId: document._id, reportId: report.id, method: document.method });
  } catch (error) {
   if (error.code === 11000) return res.status(409).json({ error: 'Concurrent indexing; retry to retrieve the indexed report' });
   next(error);

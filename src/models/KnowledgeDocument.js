@@ -5,8 +5,9 @@ const schema = new mongoose.Schema({
     sourceUrl: String,
     contentHash: { type: String, required: true },
     requestedBy: { type: String, required: true },
-    chunks: [{ _id: false, section: String, ordinal: Number, text: String }],
+    chunks: [{ _id: false, section: String, ordinal: Number, text: String, vector: [Number] }],
     indexedAt: { type: Date, default: Date.now },
+    embeddingStatus: String, embeddingModel: String, embeddingDimension: Number, embeddingProvider: String,
     method: { type: String, default: 'local_lexical' },
 }, { timestamps: true });
 schema.index({ workspace: 1, contentHash: 1 }, { unique: true });

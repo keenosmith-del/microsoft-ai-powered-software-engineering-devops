@@ -24,6 +24,7 @@ app.use((req, res, next) => {
     next();
 });
 app.use(cors({ origin: (origin, callback) => callback(null, !origin || origins.includes(origin)), credentials: true, exposedHeaders: ['X-Request-ID'] }));
+app.use('/api/signals', require('./routes/signals'));
 app.use(express.json({ limit: '256kb' }));
 
 app.use('/api/session', require('./routes/session'));
@@ -37,7 +38,10 @@ app.use('/api/platform', platformRoutes);
 app.use('/api/engineering', require('./routes/engineering'));
 app.use('/api/azure', require('./routes/azure'));
 app.use('/api/investigations', require('./routes/investigations'));
+app.use('/api/verification', require('./routes/measuredVerification'));
+app.use('/api/evidence', require('./routes/evidence'));
 app.use('/api/knowledge', require('./routes/knowledge'));
+app.use('/api/github-changes', require('./routes/githubChanges'));
 app.use('/api/remediation', require('./routes/remediation'));
 
 
@@ -56,7 +60,7 @@ app.use((error, _req, res, _next) => {
 async function startServer() {
     await connectDatabase();
 
-    await Promise.all(['Incident', 'InvestigationRun', 'KnowledgeDocument', 'RemediationProposal', 'WorkerState', 'IncidentWorkflow', 'OperationSession'].map(name => require(`./models/${name}`).init()));
+    await Promise.all(['Incident', 'InvestigationRun', 'KnowledgeDocument', 'RemediationProposal', 'WorkerState', 'IncidentWorkflow', 'OperationSession', 'EngineeringSignal', 'EngineeringEvidence', 'MeasuredVerification', 'GitHubChangeIntent'].map(name => require(`./models/${name}`).init()));
     if (process.env.INVESTIGATION_WORKER_ENABLED === 'true') {
         const worker = require('./services/investigationWorker').createInvestigationWorker();
         worker.start();
@@ -64,6 +68,10 @@ async function startServer() {
         process.once('SIGINT', () => worker.stop());
     }
 
+    if (process.env.GITHUB_SIGNAL_POLL_ENABLED === 'true') {
+        const stop = require('./services/signalPolling').createSignalPolling().start();
+        process.once('SIGTERM', stop); process.once('SIGINT', stop);
+    }
     app.listen(PORT, () => {
         console.log(`AI Engineering Operations API running on port ${PORT}`);
     });

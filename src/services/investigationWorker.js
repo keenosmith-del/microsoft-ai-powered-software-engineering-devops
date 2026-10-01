@@ -21,14 +21,14 @@ function createInvestigationWorker({ runs = Run, incidents = Incident, fetcher =
             const at = new Date(now());
             await statusWriter(at);
             // Exhausted leases are terminal: a crash must not leave an eternal running state.
-            await runs.updateMany({ status: 'running', leaseUntil: { $lt: at }, attempts: { $gte: 3 } }, { $set: { status: 'failed', currentStage: 'failed', completedAt: at, error: 'Worker lease expired after maximum attempts' }, $unset: { leaseOwner: 1, leaseUntil: 1 }, $push: { events: { id: 99, status: 'failed', stage: 'failed', at, detail: 'Maximum retries exhausted after lease expiry' } } });
+            await runs.updateMany({ status: 'running', leaseUntil: { $lt: at }, attempts: { $gte: 3 } }, { $set: { status: 'failed', currentStage: 'failed', completedAt: at, error: 'Worker lease expired after maximum attempts' }, $unset: { leaseOwner: 1, leaseUntil: 1 }, $push: { events: { id: 9999, status: 'failed', stage: 'failed', at, detail: 'Maximum retries exhausted after lease expiry' } } });
             run = await runs.findOneAndUpdate({ attempts: { $lt: 3 }, $or: [
                 { status: 'queued', nextAttemptAt: { $lte: at } },
                 { status: 'running', leaseUntil: { $lt: at } },
             ] }, { $set: { status: 'running', currentStage: 'runtime', leaseOwner: owner, leaseUntil: new Date(now() + leaseMs) }, $inc: { attempts: 1 } }, { returnDocument: 'after', sort: { createdAt: 1 } });
             if (!run) return;
             const owned = { runId: run.runId, status: 'running', leaseOwner: owner, attempts: run.attempts };
-            let sequence = run.attempts * 20;
+            let sequence = run.attempts * 1000;
             const event = (status, detail) => ({ id: sequence++, status, stage: status === 'running' ? 'runtime' : status, at: new Date(now()), detail });
             const started = await runs.updateOne(owned, { $set: { startedAt: run.startedAt || at }, $push: { events: event('running', 'Agent runtime stream started') } });
             if (!started.matchedCount) return;
@@ -45,6 +45,9 @@ function createInvestigationWorker({ runs = Run, incidents = Incident, fetcher =
             try {
                 const incident = await incidents.findById(run.incidentId).lean();
                 if (!incident) throw Object.assign(new Error('Incident no longer exists'), { permanent: true });
+                let operational = { results: [], tools: [] };
+                if (runs === Run) operational = await require('./operationalEvidence').collect(run.incidentId, run.runId, { env });
+                await runs.updateOne(owned, { $set: { operationalEvidenceIds: operational.results.map(e => e.evidenceId), toolActivity: operational.tools } });
                 let knowledge;
                 try { knowledge = await retrieval(incident.description, env); }
                 catch { knowledge = { results: [], unavailable: true }; }
@@ -52,11 +55,16 @@ function createInvestigationWorker({ runs = Run, incidents = Incident, fetcher =
                 if (!evidenceWrite.matchedCount) { lostLease = true; controller.abort(); return; }
                 const response = await fetcher(`${(env.AGENT_RUNTIME_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')}/analyse-stream`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Correlation-ID': run.correlationId },
-                    body: JSON.stringify({ problem: run.context?.notes ? `${incident.description}\n\nHuman reinvestigation context:\n${run.context.notes}` : incident.description, retrieved_evidence: knowledge.results.map(({ documentId, section, ordinal, text }) => ({ document_id: documentId, section, ordinal, text })) }), signal: controller.signal,
+                    body: JSON.stringify({ problem: run.context?.notes ? `${incident.description}\n\nHuman reinvestigation context:\n${run.context.notes}` : incident.description, retrieved_evidence: [...operational.results.slice(0, 4).map(e => ({ document_id: e.evidenceId, section: `${e.type}: ${e.relationship}; source ${e.sourceUrl}; observed ${e.observedAt}`.slice(0, 200), ordinal: 0, text: e.content.slice(0, 2000) })), ...knowledge.results.slice(0, operational.results.length ? 1 : 5).map(({ documentId, section, ordinal, text }) => ({ document_id: documentId, section, ordinal, text }))] }), signal: controller.signal,
                 });
                 if (!response.ok) throw new Error('Agent runtime request failed');
                 const data = await require('./runtimeStream').consume(response, async stage => {
                     if (lostLease) throw new Error('Worker lease lost');
+                    if (stage.kind === 'tool') {
+                        const recorded = await runs.updateOne(owned, { $push: { toolActivity: { name: stage.name, stage: stage.stage, deployment: stage.deployment ? redact(stage.deployment, env) : undefined, inputTokens: stage.inputTokens, outputTokens: stage.outputTokens, totalTokens: stage.totalTokens, at: new Date(stage.at), durationMs: stage.durationMs, outcome: stage.outcome, error: stage.error } } });
+                        if (!recorded.matchedCount) { lostLease = true; controller.abort(); throw new Error('Run cancelled or lease lost'); }
+                        return;
+                    }
                     const result = await runs.updateOne(owned, { $set: { currentStage: stage.stage }, $push: { events: { id: sequence++, status: stage.status, stage: stage.stage, at: new Date(stage.at), elapsedMs: stage.elapsedMs, detail: stage.status === 'failed' ? 'Agent stage failed; provider details redacted' : `Agent ${stage.status}` } } });
                     if (!result.matchedCount) { lostLease = true; controller.abort(); throw new Error('Run cancelled or lease lost'); }
                 });
