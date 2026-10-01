@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
-  analyseIncident,
+  createManualIncident,
+  startDurableInvestigation,
   getActions,
   getApiHealth,
   getCloudPlatform,
@@ -18,6 +19,7 @@ import {
 
 import Sidebar from './components/Sidebar/Sidebar'
 import Incidents from './components/Incidents/Incidents'
+import IncidentWorkspace from './components/Incidents/IncidentWorkspace'
 import Engineering from './components/Engineering/Engineering'
 import Actions from './components/Actions/Actions'
 import Repository from './components/Repository/Repository'
@@ -218,89 +220,20 @@ function App() {
   }, [activeView, refreshOverview])
 
   const handleInvestigate = async () => {
-    if (!incident.trim()) {
-      return
-    }
-
+    if (!incident.trim() || agentStatus === 'running') return
     setAgentStatus('running')
-    setSelectedIncident(null)
     setInvestigationResult(null)
     setInvestigationError('')
-
-    setAgentExecution([
-      {
-        id: 'software-engineering',
-        name: 'Software Engineering',
-        description: 'Code & architecture analysis',
-        status: 'running',
-      },
-      {
-        id: 'incident-investigation',
-        name: 'Incident Investigation',
-        description: 'Evidence & root-cause analysis',
-        status: 'idle',
-      },
-      {
-        id: 'engineering-action',
-        name: 'Engineering Action',
-        description: 'Recommended remediation',
-        status: 'idle',
-      },
-    ])
-
+    setAgentExecution(current => current.map(agent => ({ ...agent, status: 'idle' })))
     try {
-      const result = await analyseIncident(incident, severity)
-
-      setAgentExecution([
-        {
-          id: 'software-engineering',
-          name: 'Software Engineering',
-          description: 'Code & architecture analysis',
-          status: 'complete',
-        },
-        {
-          id: 'incident-investigation',
-          name: 'Incident Investigation',
-          description: 'Evidence & root-cause analysis',
-          status: 'complete',
-        },
-        {
-          id: 'engineering-action',
-          name: 'Engineering Action',
-          description: 'Recommended remediation',
-          status: 'complete',
-        },
-      ])
-
-      setInvestigationResult(result)
-      setAgentStatus('complete')
-      if (result.incidentId) {
-        try {
-          setSelectedIncident(await getIncident(result.incidentId))
-        } catch (loadError) {
-          console.error('Investigation completed, but its saved record could not be reloaded:', loadError)
-        }
-      }
+      const created = await createManualIncident(incident.trim(), severity)
+      setSelectedIncident(created)
+      window.history.replaceState(null, '', `#/incidents/${created._id}`)
+      await startDurableInvestigation(created._id, crypto.randomUUID())
+      setAgentStatus('ready')
       void refreshOverview()
     } catch (error) {
-      console.error('Investigation failed:', error)
-
-      setAgentExecution((current) =>
-        current.map((agent) => ({
-          ...agent,
-          status:
-            agent.status === 'running'
-              ? 'error'
-              : agent.status,
-        })),
-      )
-
-      setInvestigationError(
-        error instanceof Error
-          ? error.message
-          : 'Investigation failed',
-      )
-
+      setInvestigationError(error instanceof Error ? error.message : 'Incident submission failed')
       setAgentStatus('ready')
       void refreshOverview()
     }
@@ -339,6 +272,7 @@ function App() {
   }
 
   const handleSelectIncident = async (incidentId: string) => {
+    window.history.replaceState(null, '', `#/incidents/${incidentId}`)
     setInvestigationError('')
     setInvestigationResult(null)
     setSelectedIncident(null)
@@ -426,6 +360,16 @@ function App() {
     setActionIncidentId(incidentId)
     setActiveView('actions')
   }
+
+  useEffect(() => {
+    const restore = () => {
+      const match = window.location.hash.match(/^#\/incidents\/([a-fA-F0-9]{24})$/)
+      if (match) void handleSelectIncident(match[1])
+    }
+    restore()
+    window.addEventListener('hashchange', restore)
+    return () => window.removeEventListener('hashchange', restore)
+  }, [])
 
   const activeIncidentCount = overview?.incidents?.filter((item) =>
     item.status === 'Investigating' || item.status === 'Open',
@@ -927,6 +871,8 @@ function App() {
 
         {activeView === 'settings' && <Settings />}
         {activeView === 'knowledge' && <Knowledge />}
+
+        {activeView === 'overview' && selectedIncident && <IncidentWorkspace key={selectedIncident._id} incidentId={selectedIncident._id} />}
 
         <footer className="footer">
           <span>Engineering Operations</span>

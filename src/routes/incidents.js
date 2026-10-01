@@ -144,7 +144,14 @@ router.patch('/:id/status', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        const incident = await Incident.create(req.body);
+        const body = req.body || {};
+        if (Object.keys(body).some(key => !['title', 'description', 'service', 'severity'].includes(key)) ||
+            !['title', 'description'].every(key => typeof body[key] === 'string' && body[key].trim() && body[key].length <= (key === 'title' ? 200 : 100000)) ||
+            (body.service !== undefined && (typeof body.service !== 'string' || !body.service.trim() || body.service.length > 200)) ||
+            (body.severity !== undefined && !['Critical', 'High', 'Medium', 'Low'].includes(body.severity))) {
+            return res.status(400).json({ error: 'Supply title, description, optional service and severity; lifecycle fields cannot be supplied' });
+        }
+        const incident = await Incident.create({ ...body, status: 'Open' });
 
         res.status(201).json(incident);
     } catch (error) {

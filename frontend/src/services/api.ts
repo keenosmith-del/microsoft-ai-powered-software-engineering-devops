@@ -1,9 +1,12 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5050').replace(/\/$/, '')
 
+let operationsToken = ''
+export function setOperationsToken(token: string) { operationsToken = token }
+
 async function request<T>(path: string, init?: RequestInit, fallback = 'Request failed'): Promise<T> {
   const timeout = AbortSignal.timeout(path === '/api/analyse' || path.endsWith('/retry') ? 310_000 : 30_000)
   const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, signal })
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers: { ...(operationsToken ? { Authorization: `Bearer ${operationsToken}` } : {}), ...Object.fromEntries(new Headers(init?.headers).entries()) }, signal })
   const data = await response.json().catch(() => null)
 
   if (!response.ok) {
@@ -253,8 +256,8 @@ export type InvestigationRun = {
   result?: { analysis: string; investigation: string; actions: string }
   events: { id: number; status: string; stage: string; at: string; detail: string }[]
 }
-export function getInvestigationRuns(token: string, page: number, signal?: AbortSignal) {
-  return request<{ items: InvestigationRun[]; page: number; hasNext: boolean }>(`/api/investigations?page=${page}`, { headers: { Authorization: `Bearer ${token}` }, signal })
+export function getInvestigationRuns(token: string, page: number, signal?: AbortSignal, incidentId?: string) {
+  return request<{ items: InvestigationRun[]; page: number; hasNext: boolean }>(`/api/investigations?page=${page}${incidentId ? `&incidentId=${encodeURIComponent(incidentId)}` : ''}`, { headers: { Authorization: `Bearer ${token}` }, signal })
 }
 export function submitInvestigation(token: string, incidentId: string, key: string) {
   return request<InvestigationRun>(`/api/incidents/${incidentId}/investigations`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: JSON.stringify({ triggerSource: 'manual' }) })
@@ -288,4 +291,31 @@ export function createProposal(token: string, body: Omit<RemediationProposal, '_
 }
 export function reviewProposal(token: string, proposal: RemediationProposal, decision: 'approved' | 'rejected', comment: string) {
   return request<RemediationProposal>(`/api/remediation/${proposal._id}/review`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ decision, version: proposal.version, comment }) })
+}
+
+export type IncidentWorkflow = {
+ stage: string; version: number
+ reviews: { id: string; runId: string; decision: string }[]
+ changes: { id: string; proposalId: string }[]
+ verifications: { id: string; result: string; criteria: string }[]
+ resolutions: { id: string; notes: string }[]
+ reports?: { id: string; content: string; status: string }[]
+ audit: { id: string; actor: string; at: string; action: string; notes: string }[]
+}
+export function getIncidentWorkflow(token: string, incidentId: string) {
+ return request<IncidentWorkflow>(`/api/incidents/${incidentId}/workflow`, { headers: { Authorization: `Bearer ${token}` } })
+}
+export function updateIncidentWorkflow(token: string, incidentId: string, body: Record<string, unknown>) {
+ return request<IncidentWorkflow>(`/api/incidents/${incidentId}/workflow`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+}
+
+export function createManualIncident(description: string, severity: Incident['severity']) {
+ return request<Incident>('/api/incidents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: description.slice(0, 80), description, severity }) })
+}
+export function startDurableInvestigation(incidentId: string, key: string) {
+ return request<InvestigationRun>(`/api/incidents/${incidentId}/investigations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: JSON.stringify({ triggerSource: 'manual' }) })
+}
+
+export function indexIncidentReport(token: string, incidentId: string) {
+ return request<{ documentId: string; reportId: string; method: string }>(`/api/incidents/${incidentId}/workflow/report/index`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
 }

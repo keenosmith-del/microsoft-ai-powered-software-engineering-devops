@@ -51,7 +51,7 @@ function createInvestigationWorker({ runs = Run, incidents = Incident, fetcher =
                 if (!evidenceWrite.matchedCount) { lostLease = true; controller.abort(); return; }
                 const response = await fetcher(`${(env.AGENT_RUNTIME_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')}/analyse`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Correlation-ID': run.correlationId },
-                    body: JSON.stringify({ problem: incident.description, retrieved_evidence: knowledge.results.map(({ documentId, section, ordinal, text }) => ({ document_id: documentId, section, ordinal, text })) }), signal: controller.signal,
+                    body: JSON.stringify({ problem: run.context?.notes ? `${incident.description}\n\nHuman reinvestigation context:\n${run.context.notes}` : incident.description, retrieved_evidence: knowledge.results.map(({ documentId, section, ordinal, text }) => ({ document_id: documentId, section, ordinal, text })) }), signal: controller.signal,
                 });
                 if (!response.ok) throw new Error('Agent runtime request failed');
                 const data = await response.json();
@@ -70,7 +70,7 @@ function createInvestigationWorker({ runs = Run, incidents = Incident, fetcher =
     }
     return {
         tick,
-        start() { stopped = false; timer = setInterval(() => tick().catch(() => console.error('Investigation worker database operation failed')), 2000); timer.unref(); },
+        start() { stopped = false; timer = setInterval(() => require('./investigationOutbox').drain().then(() => tick()).catch(() => console.error('Investigation worker database operation failed')), 2000); timer.unref(); },
         stop() { stopped = true; clearInterval(timer); activeController?.abort(); },
     };
 }

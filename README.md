@@ -137,3 +137,11 @@ The following remain unimplemented: vector/semantic search, Azure AI Search inde
 ## Phase 2 additive implementation
 
 Measured engineering health, GitHub workflow/deployment reads, scoped Azure inventory/activity, durable additive investigations, local lexical knowledge retrieval, and persisted remediation reviews are now available as an initial Phase 2 foundation. Existing incident lifecycle routes and buttons remain unchanged; the new worker is opt-in and remote remediation execution remains disabled. See [verification and remaining work](docs/phase-2/PROGRESS.md), [API/setup](docs/phase-2/API.md) and [architecture decisions](docs/phase-2/ADRs.md). This foundation does not implement every target Phase 2 capability.
+
+## Phase 3 workflow checkpoint
+
+New Overview submissions persist a manual incident and queue a durable investigation. The incident workspace adds source-backed human findings review, approved external change records, manual verification outcomes, explicit resolution/reopening, report approval and indexing into lexical knowledge. Targeted reinvestigation uses an idempotent persisted outbox. Original incident/output history and Phase 2 APIs are retained.
+
+Incident/action access now requires the configured operations token and reviewer identity. Connect access in Settings. For isolated local legacy compatibility only, set `OPERATIONS_LOCAL_MODE=true`; production always requires authorization. New operations remain protected in either mode. Use a supported Node runtime (22.12+ or supported 24); older Node can fail in the frontend bundler.
+
+This is a partial Phase 3 checkpoint. Workflow state remains separate from legacy incident status. Entra roles, automated telemetry verification, agent stage topology, signals, reviewed PR writes, semantic retrieval, command palette and browser/visual acceptance remain unfinished. See [progress and exact next actions](docs/phase-3/PROGRESS.md), [current architecture](docs/phase-3/ARCHITECTURE.md), [API](docs/phase-3/API_REFERENCE.md), [test evidence](docs/phase-3/TEST_RESULTS.md), [security](docs/phase-3/SECURITY.md) and [startup](docs/phase-3/DEPLOYMENT.md).

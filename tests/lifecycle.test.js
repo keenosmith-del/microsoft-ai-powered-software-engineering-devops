@@ -5,6 +5,7 @@ const runtime = require('../src/services/agentRuntime');
 const originalRun = runtime.runInvestigation;
 let output;
 runtime.runInvestigation = async () => { if (output instanceof Error) throw output; return output; };
+process.env.OPERATIONS_LOCAL_MODE = 'true';
 const app = require('../src/app');
 let server, base, record;
 const originalFind = Incident.findById;
@@ -46,4 +47,10 @@ test('legacy failed investigation remains retryable; retry returns a complete in
     const response = await request('/api/incidents/test-id/retry', 'POST', {});
     assert.equal(response.status, 200); assert.equal(response.body.status, 'Open'); assert.equal(response.body.description, 'Test failure'); assert.equal(response.body.investigation, 'i');
     assert.equal((await request('/api/incidents/test-id/retry', 'POST', {})).status, 409);
+});
+test('manual creation rejects lifecycle/output injection and persists an Open incident', async () => {
+    assert.equal((await request('/api/incidents', 'POST', { title: 'Test manual incident', description: 'Test-only description', status: 'Resolved' })).status, 400);
+    assert.equal((await request('/api/incidents', 'POST', { title: 'Test manual incident', description: 'Test-only description', actions: 'Injected AI output' })).status, 400);
+    const response = await request('/api/incidents', 'POST', { title: 'Test manual incident', description: 'Test-only description', service: 'Test service', severity: 'High' });
+    assert.equal(response.status, 201); assert.equal(record.status, 'Open'); assert.equal(record.actions, undefined);
 });

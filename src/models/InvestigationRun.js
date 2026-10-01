@@ -22,6 +22,7 @@ const schema = new mongoose.Schema({
     error: String,
     retrievalStatus: String,
     evidenceReferences: [{ _id: false, documentId: String, section: String, ordinal: Number, indexedAt: Date, sourceUrl: String }],
+    context: { notes: String },
     cancellation: { requestedBy: String, requestedAt: Date, detail: String },
     events: [{ _id: false, id: Number, status: String, stage: String, at: Date, detail: String }],
 }, { timestamps: true });

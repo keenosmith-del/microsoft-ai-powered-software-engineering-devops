@@ -9,6 +9,7 @@ import {
   Workflow,
 } from 'lucide-react'
 import {
+  setOperationsToken,
   getActions,
   getApiHealth,
   getCloudPlatform,
@@ -39,6 +40,7 @@ const emptySnapshot: SettingsSnapshot = {
 }
 
 function Settings() {
+  const [operationsToken, setToken] = useState('')
   const [snapshot, setSnapshot] = useState(emptySnapshot)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -138,6 +140,12 @@ function Settings() {
       </section>
 
       {errors.length > 0 && <div className="settings-error" role="status">Some live checks did not respond: {errors.join(' · ')}</div>}
+
+      <section className="phase2-workspace">
+        <h2>Operations access</h2>
+        <p>Enter the configured operations token to access incidents and engineering actions. It remains in application memory and clears on browser refresh. This local shared identity does not provide separate user roles.</p>
+        <form onSubmit={event => { event.preventDefault(); setOperationsToken(operationsToken); void refresh(); if (/^#\/incidents\/[a-fA-F0-9]{24}$/.test(window.location.hash)) window.dispatchEvent(new Event('hashchange')) }}><label>Operations token<input type="password" autoComplete="off" value={operationsToken} onChange={event => setToken(event.target.value)} /></label><button type="submit">Connect operations</button></form>
+      </section>
 
       <section className="settings-grid">
         <article className="settings-card">

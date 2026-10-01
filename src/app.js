@@ -26,11 +26,12 @@ app.use((req, res, next) => {
 app.use(cors({ origin: (origin, callback) => callback(null, !origin || origins.includes(origin)), exposedHeaders: ['X-Request-ID'] }));
 app.use(express.json({ limit: '256kb' }));
 
+app.use('/api/incidents/:id/workflow', require('./routes/incidentWorkflow'));
 app.use('/api/incidents/:id/investigations', require('./routes/incidentInvestigations'));
-app.use('/api/incidents', incidentRoutes);
-app.use('/api/analyse', analysisRoutes);
+app.use('/api/incidents', require('./middleware/legacyBoundary'), incidentRoutes);
+app.use('/api/analyse', require('./middleware/legacyBoundary'), analysisRoutes);
 app.use('/api/repository', repositoryRoutes);
-app.use('/api/actions', actionRoutes);
+app.use('/api/actions', require('./middleware/legacyBoundary'), actionRoutes);
 app.use('/api/platform', platformRoutes);
 app.use('/api/engineering', require('./routes/engineering'));
 app.use('/api/azure', require('./routes/azure'));
@@ -54,7 +55,7 @@ app.use((error, _req, res, _next) => {
 async function startServer() {
     await connectDatabase();
 
-    await Promise.all(['InvestigationRun', 'KnowledgeDocument', 'RemediationProposal', 'WorkerState'].map(name => require(`./models/${name}`).init()));
+    await Promise.all(['InvestigationRun', 'KnowledgeDocument', 'RemediationProposal', 'WorkerState', 'IncidentWorkflow'].map(name => require(`./models/${name}`).init()));
     if (process.env.INVESTIGATION_WORKER_ENABLED === 'true') {
         const worker = require('./services/investigationWorker').createInvestigationWorker();
         worker.start();

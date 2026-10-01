@@ -1,11 +1,15 @@
 :root {
+  --radius-button: 9999px;
+  --radius-input: 14px;
+  --radius-popover: 18px;
+  --radius-modal: 24px;
   font-family:
-    Inter,
     -apple-system,
     BlinkMacSystemFont,
     "SF Pro Display",
     "SF Pro Text",
-    "Segoe UI",
+    "Helvetica Neue",
+    Arial,
     sans-serif;
   color: #f5f5f5;
   background: #090909;
@@ -59,18 +63,28 @@ textarea {
 .phase2-workspace label { display: grid; gap: 7px; color: var(--ops-muted, #999997); font-size: 12px; }
 .phase2-workspace input, .phase2-workspace select, .phase2-workspace textarea {
   box-sizing: border-box; width: 100%; background: var(--ops-panel, #171717);
-  border: 1px solid var(--ops-border, #343434); border-radius: 6px; color: var(--ops-text, #f1f0ed); padding: 10px;
+  border: 0; border-radius: var(--radius-input); color: var(--ops-text, #f1f0ed); padding: 10px;
   font: inherit;
 }
 .phase2-workspace button {
-  width: fit-content; padding: 8px 12px; border: 1px solid var(--ops-border, #343434);
-  border-radius: 6px; color: var(--ops-text, #f1f0ed); background: var(--ops-panel, #171717); cursor: pointer;
+  width: fit-content; padding: 8px 12px; border: 0;
+  border-radius: var(--radius-button); color: var(--ops-text, #f1f0ed); background: var(--ops-panel, #171717); cursor: pointer;
 }
 .phase2-workspace button:disabled { opacity: .5; cursor: default; }
 .phase2-workspace button:focus-visible, .phase2-workspace input:focus-visible, .phase2-workspace textarea:focus-visible, .phase2-workspace select:focus-visible { outline: 2px solid #a7cdb5; outline-offset: 2px; }
 .phase2-workspace pre { overflow-wrap: anywhere; font-size: 12px; line-height: 1.7; }
 .phase2-workspace details { margin: 14px 0; }
 .phase2-workspace p { font-size: 12px; line-height: 1.7; }
-.actions-panel.phase2-workspace { margin-top: 32px; padding: 24px; border: 1px solid var(--ops-border, #343434); border-radius: 8px; }
-.actions-panel.phase2-workspace .action-card { margin: 16px 0; padding: 16px; border: 1px solid var(--ops-border, #343434); border-radius: 6px; }
+.actions-panel.phase2-workspace { margin-top: 32px; padding: 24px; border: 0; border-radius: 0; }
+.actions-panel.phase2-workspace .action-card { margin: 16px 0; padding: 16px; border: 0; border-radius: var(--radius-input); }
 .azure-inventory.phase2-workspace .azure-inventory-row { grid-template-columns: minmax(0, 1fr) auto; }
+
+button { border-radius: var(--radius-button) !important; }
+button:focus-visible { outline: 2px solid #f1f0ed; outline-offset: 4px; }
+.incident-workspace { max-width: 1100px; margin: 48px auto; padding: 0 32px; }
+.incident-workspace h2 { font-size: clamp(28px, 4vw, 48px); font-weight: 400; letter-spacing: -.04em; }
+.incident-workspace form { max-width: 720px; }
+.incident-workspace button { min-height: 44px; }
+.incident-workspace pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .incident-workspace { padding: 0 20px; margin: 32px 0; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; animation-iteration-count: 1 !important; } }
