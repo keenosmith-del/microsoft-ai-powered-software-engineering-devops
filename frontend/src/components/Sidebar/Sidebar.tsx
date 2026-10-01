@@ -93,7 +93,7 @@ function Sidebar({ activeView, onNavigate }: SidebarProps) {
 
         {navigation.map((item) => {
           const Icon = item.icon
-          const isActive = activeView === item.view
+          const isActive = (activeView === item.view || (activeView === 'incident' && item.view === 'incidents'))
 
           return (
             <button
@@ -102,6 +102,9 @@ function Sidebar({ activeView, onNavigate }: SidebarProps) {
               className={`sidebar-item ${
                 isActive ? 'sidebar-item-active' : ''
               }`}
+              aria-label={item.label}
+              title={item.label}
+              aria-current={isActive ? 'page' : undefined}
               onClick={() => onNavigate(item.view)}
             >
               <Icon
@@ -123,6 +126,8 @@ function Sidebar({ activeView, onNavigate }: SidebarProps) {
               ? 'sidebar-item-active'
               : ''
           }`}
+          aria-label="Settings"
+          title="Settings"
           onClick={() => onNavigate('settings')}
         >
           <Settings
@@ -142,7 +147,7 @@ function Sidebar({ activeView, onNavigate }: SidebarProps) {
             </span>
 
             <span className="sidebar-status-value">
-              Operational
+              See connection status
             </span>
           </div>
         </div>

@@ -26,3 +26,7 @@ Keep findings review and proposal approval unchanged. When GitHub write policy i
 After recording actual manual change, measured verification retrieves two explicit Azure Monitor windows. Inspect original observations, units, threshold, difference and reason. Passed measurements do not resolve the incident: record the combined human assessment through existing verification controls and deliberately resolve. GitHub CI-only and App Insights measured comparison algorithms remain incomplete; those sources can be inspected but are not evaluated as Azure recovery.
 
 Knowledge displays vector indexing status and permits reindexing. Search shows real semantic cosine ranking when a configured compatible local model/index exists, or labeled lexical fallback and reason. Full history, reopening, approved report ingestion, bookmarks and session restoration remain the existing journey.
+
+## Navigation and supporting workspaces
+
+Use Cmd+K or Ctrl+K to find pages, returned incidents and the configured repository. Arrow keys select results, Enter opens one, Escape closes the native modal and restores focus. Page navigation remains available if provider search fails. Agents history uses the signed-in operations session and refreshes every five seconds; topology reads actual stage events. Knowledge source and Actions proposal lists have previous/next controls. Actions links to each incident's canonical review/remediation/verification workspace. Incident lists offer severity/status filters, sorting and 20-row display pages over the bounded API result.

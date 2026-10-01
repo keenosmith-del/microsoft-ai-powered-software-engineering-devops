@@ -6,7 +6,6 @@ import {
   getApiHealth,
   getCloudPlatform,
   getIncidents,
-  getIncident,
   getRepository,
   retryIncidentInvestigation,
   type ApiHealth,
@@ -17,6 +16,8 @@ import {
   type RepositoryData,
 } from './services/api'
 
+import OperationsQueue from './components/OperationsQueue'
+import CommandPalette from './components/CommandPalette'
 import Sidebar from './components/Sidebar/Sidebar'
 import Incidents from './components/Incidents/Incidents'
 import IncidentWorkspace from './components/Incidents/IncidentWorkspace'
@@ -141,6 +142,7 @@ function MarkdownContent({ content }: { content: string }) {
 
 function App() {
   const [activeView, setActiveView] = useState('overview')
+  const [routeIncidentId, setRouteIncidentId] = useState('')
   const [submissionKey, setSubmissionKey] = useState(() => crypto.randomUUID())
   const navigate = (view: string) => { window.history.pushState(null, '', view === 'overview' ? '/' : `/${view}`); setActiveView(view) }
   const [overview, setOverview] = useState<OverviewSnapshot | null>(null)
@@ -214,9 +216,12 @@ function App() {
 
   useEffect(() => {
     if (activeView !== 'overview') return
+    const refresh = () => { void refreshOverview() }
+    window.addEventListener('ops-auth-changed', refresh)
     const initialLoad = window.setTimeout(() => void refreshOverview(), 0)
     const interval = window.setInterval(() => void refreshOverview(), 120_000)
     return () => {
+      window.removeEventListener('ops-auth-changed', refresh)
       window.clearTimeout(initialLoad)
       window.clearInterval(interval)
     }
@@ -230,7 +235,8 @@ function App() {
     setAgentExecution(current => current.map(agent => ({ ...agent, status: 'idle' })))
     try {
       const created = await createManualIncident(incident.trim(), severity, submissionKey)
-      setSelectedIncident(created)
+      setIncident('')
+      setRouteIncidentId(created._id)
       setSubmissionKey(crypto.randomUUID())
       window.history.pushState(null, '', `/incidents/${created._id}`)
       setActiveView('incident')
@@ -275,66 +281,10 @@ function App() {
     navigate('overview')
   }
 
-  const handleSelectIncident = async (incidentId: string) => {
+  const handleSelectIncident = (incidentId: string) => {
     if (window.location.pathname !== `/incidents/${incidentId}`) window.history.pushState(null, '', `/incidents/${incidentId}`)
-    setInvestigationError('')
-    setInvestigationResult(null)
-    setSelectedIncident(null)
-    setAgentStatus('loading')
+    setRouteIncidentId(incidentId)
     setActiveView('incident')
-
-    setAgentExecution([
-      {
-        id: 'software-engineering',
-        name: 'Software Engineering',
-        description: 'Code & architecture analysis',
-        status: 'complete',
-      },
-      {
-        id: 'incident-investigation',
-        name: 'Incident Investigation',
-        description: 'Evidence & root-cause analysis',
-        status: 'complete',
-      },
-      {
-        id: 'engineering-action',
-        name: 'Engineering Action',
-        description: 'Recommended remediation',
-        status: 'complete',
-      },
-    ])
-
-    try {
-      const selectedIncident = await getIncident(incidentId)
-
-      setSelectedIncident(selectedIncident)
-      setIncident(selectedIncident.description)
-      setSeverity(selectedIncident.severity)
-
-      const hasResults = Boolean(selectedIncident.analysis || selectedIncident.investigation || selectedIncident.actions)
-      setInvestigationResult(hasResults ? {
-        success: true,
-        analysis: selectedIncident.analysis,
-        investigation: selectedIncident.investigation,
-        actions: selectedIncident.actions,
-        incidentId: selectedIncident._id,
-      } : null)
-      setInvestigationError(hasResults ? '' : selectedIncident.investigationError || (selectedIncident.status === 'Investigating' ? 'This investigation has not completed yet.' : 'This incident has no saved investigation output.'))
-      setAgentStatus(hasResults ? 'complete' : 'ready')
-      if (!hasResults) {
-        setAgentExecution((current) => current.map((agent) => ({ ...agent, status: 'idle' })))
-      }
-    } catch (error) {
-      console.error('Failed to load incident:', error)
-
-      setInvestigationError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to load incident',
-      )
-
-      setAgentStatus('ready')
-    }
   }
 
   const handleRetrySelectedInvestigation = async () => {
@@ -362,7 +312,7 @@ function App() {
 
   const openIncidentActions = (incidentId: string) => {
     setActionIncidentId(incidentId)
-    setActiveView('actions')
+    navigate('actions')
   }
 
   useEffect(() => {
@@ -441,8 +391,9 @@ function App() {
         </header>
 
         <SessionAccess />
+        <CommandPalette onNavigate={navigate} onIncident={handleSelectIncident} />
         {activeView === 'notfound' && <main className="incident-workspace"><h1>Page not found</h1><p>Check the incident address.</p></main>}
-        {activeView === 'incident' && <IncidentWorkspace incidentId={window.location.pathname.split('/')[2]} />}
+        {activeView === 'incident' && <IncidentWorkspace key={routeIncidentId} incidentId={routeIncidentId} />}
         {activeView === 'overview' && (
           <main className="dashboard">
 
@@ -519,6 +470,7 @@ function App() {
 
             </section>
 
+            <OperationsQueue incidents={overview?.incidents || null} onIncident={handleSelectIncident} onNavigate={navigate} />
             <section className="workspace">
 
               <div className="workspace-main">
@@ -872,7 +824,7 @@ function App() {
 
         {activeView === 'engineering' && <Engineering />}
 
-        {activeView === 'actions' && <Actions incidentId={actionIncidentId ?? undefined} onClearIncidentFilter={() => setActionIncidentId(null)} onBackToIncidents={() => setActiveView('incidents')} />}
+        {activeView === 'actions' && <Actions incidentId={actionIncidentId ?? undefined} onClearIncidentFilter={() => setActionIncidentId(null)} onBackToIncidents={() => navigate('incidents')} />}
 
         {activeView === 'repository' && <Repository />}
 

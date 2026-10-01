@@ -10,6 +10,8 @@ import Signals from '../Signals/Signals'
 import { captureGitHubFailure, getJobLog } from '../../services/api'
 
 function Repository() {
+  const [query, setQuery] = useState('')
+  const [capturing, setCapturing] = useState(false)
   const [branch, setBranch] = useState('')
   const [page, setPage] = useState(1)
   const [activity, setActivity] = useState<RepositoryActivity | null>(null)
@@ -51,7 +53,7 @@ function Repository() {
     const current = new AbortController()
     jobController.current = current
     const timer = window.setTimeout(() => current.abort(), 10_000)
-    setSelectedRun(id); setJobs(null); setJobsError('')
+    setSelectedRun(id); setLog(''); setJobs(null); setJobsError('')
     try { const result = await getRepositoryJobs(id, current.signal); if (jobController.current === current) setJobs(result) }
     catch (failure) { if (jobController.current === current) setJobsError(failure instanceof Error ? failure.message : 'Jobs unavailable') }
     finally { window.clearTimeout(timer) }
@@ -104,13 +106,14 @@ function Repository() {
       {error && <div className="repository-error" role="status">{repository ? `Refresh failed: ${error}` : error}</div>}
 
       <div className="repository-header-actions">
+        <label>Search loaded evidence <input aria-label="Search repository evidence" value={query} onChange={event => setQuery(event.target.value)} /></label>
         <label>Branch <select aria-label="Repository branch" value={branch || repository?.branch.name || ''} onChange={event => { setBranch(event.target.value); setPage(1); setRepository(null); setActivity(null); setJobs(null); setLoading(true) }}>
           {!repository && <option value={branch}>{branch || 'Default branch'}</option>}
           {repository?.branches.map(item => <option key={item.name} value={item.name}>{item.name}</option>)}
         </select></label>
         <button disabled={page === 1 || refreshing} onClick={() => setPage(value => value - 1)}>Previous page</button>
         <span>Page {page}</span>
-        <button disabled={refreshing || !repository?.hasNext || page >= 100} onClick={() => setPage(value => value + 1)}>Next page</button>
+        <button disabled={refreshing || !(repository?.hasNext || activity?.runs.hasNext) || page >= 100} onClick={() => setPage(value => value + 1)}>Next page</button>
       </div>
       <section className="repository-panel">
         <div className="repository-panel-header"><div><span className="eyebrow">CI/CD INTELLIGENCE</span><h2>Workflows and deployments</h2></div></div>
@@ -119,7 +122,7 @@ function Repository() {
         {activity && <>
           <div className="evidence-list">{activity.workflows.items?.map(item => <div key={item.id}><a href={item.html_url} target="_blank" rel="noreferrer">{item.name}</a><strong>{item.state}</strong></div>)}</div>
           {activity.workflows.error && <p>{activity.workflows.error}</p>}
-          <div className="commit-list">{activity.runs.items?.map(run => <article className="commit-row" key={run.id}><div className="commit-content"><a href={run.html_url} target="_blank" rel="noreferrer">{run.name}</a><div className="commit-meta">{run.head_branch} · {run.head_sha.slice(0, 7)} · {run.conclusion || run.status} · {new Date(run.created_at).toLocaleString()}</div></div><button onClick={() => void selectRun(run.id)}>Inspect jobs</button>{['failure', 'timed_out', 'action_required'].includes(run.conclusion || '') && <button onClick={() => void captureGitHubFailure(run.id).then(() => { setCaptureError('Failure signal retained. Refresh signals below to create or attach an incident.') }).catch(e => setCaptureError(e.message))}>Capture failure signal</button>}</article>)}</div>
+          <div className="commit-list">{activity.runs.items?.filter(run => `${run.name} ${run.head_branch} ${run.head_sha} ${run.conclusion || run.status}`.toLowerCase().includes(query.toLowerCase())).map(run => <article className="commit-row" key={run.id}><div className="commit-content"><a href={run.html_url} target="_blank" rel="noreferrer">{run.name}</a><div className="commit-meta">{run.head_branch} · {run.head_sha.slice(0, 7)} · {run.conclusion || run.status} · {new Date(run.created_at).toLocaleString()}</div></div><button onClick={() => void selectRun(run.id)}>Inspect jobs</button>{['failure', 'timed_out', 'action_required'].includes(run.conclusion || '') && <button disabled={capturing} onClick={() => { setCapturing(true); void captureGitHubFailure(run.id).then(() => { setCaptureError('Failure signal retained. Refresh signals below to create or attach an incident.') }).catch(e => setCaptureError(e.message)).finally(() => setCapturing(false)) }}>Capture failure signal</button>}</article>)}</div>
           {activity.runs.error && <p>{activity.runs.error}</p>}
           {activity.runs.items?.length === 0 && <p>No workflow runs returned for this branch and page.</p>}
           {selectedRun && <div className="evidence-list"><h3>Jobs for run {selectedRun}</h3>{jobsError && <p role="alert">{jobsError}</p>}{!jobs && !jobsError && <p>Loading jobs…</p>}{jobs?.items.map(job => <div key={job.id}><a href={job.html_url} target="_blank" rel="noreferrer">{job.name}</a><strong>{job.conclusion || job.status}</strong><span><button onClick={() => void getJobLog(job.id).then(v => setLog(`${v.truncated ? 'Truncated excerpt\n' : ''}${v.content}`)).catch(e => setLog(e.message))}>Inspect available logs</button><span>{job.steps.filter(step => step.conclusion === 'failure').map(step => step.name).join(', ')}</span></span></div>)}{jobs?.items.length === 0 && <p>No jobs returned.</p>}{jobs?.hasNext && <p>First 30 jobs shown; open the run on GitHub for remaining jobs.</p>}</div>}
@@ -163,7 +166,7 @@ function Repository() {
               {loading && <div className="change-empty"><div><h3>Loading repository history…</h3><p>Retrieving recent commits from GitHub.</p></div></div>}
               {!loading && !repository && <div className="change-empty"><div><h3>Repository unavailable</h3><p>{error || 'The repository service did not return data.'}</p></div></div>}
               {!loading && repository?.recent_commits.length === 0 && <div className="change-empty"><div><h3>No commits returned</h3><p>The selected repository branch has no recent commit data.</p></div></div>}
-              {repository?.recent_commits.map((commit, index) => (
+              {repository?.recent_commits.filter(commit => `${commit.message} ${commit.sha} ${commit.author}`.toLowerCase().includes(query.toLowerCase())).map((commit, index) => (
                 <article className="commit-row" key={commit.sha}>
                   <div className="commit-index">{String(index + 1).padStart(2, '0')}</div>
                   <div className="commit-content">

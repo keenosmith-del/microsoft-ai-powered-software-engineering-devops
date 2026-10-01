@@ -276,8 +276,8 @@ export function cancelInvestigation(token: string, runId: string) {
 }
 export type KnowledgeSource = { _id: string; title: string; sourceUrl?: string; indexedAt: string; method: string; embeddingStatus?: string; embeddingModel?: string }
 export type KnowledgeHit = { documentId: string; title: string; sourceUrl: string | null; indexedAt: string; section: string; ordinal: number; text: string; score: number; method: string }
-export function listKnowledge(token: string) {
-  return request<{ workspace: string; method: string; items: KnowledgeSource[]; hasNext: boolean }>('/api/knowledge', { headers: { Authorization: `Bearer ${token}` } })
+export function listKnowledge(token: string, page = 1) {
+  return request<{ workspace: string; method: string; items: KnowledgeSource[]; hasNext: boolean }>(`/api/knowledge?page=${page}`, { headers: { Authorization: `Bearer ${token}` } })
 }
 export function ingestKnowledge(token: string, title: string, text: string, sourceUrl: string) {
   return request('/api/knowledge', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ title, text, ...(sourceUrl ? { sourceUrl } : {}) }) })
@@ -330,8 +330,10 @@ export function indexIncidentReport(token: string, incidentId: string) {
 }
 
 export type OperationSession = { actor: string; role: string; csrf: string; expiresAt: string }
-export async function restoreSession() {
- const value = await request<OperationSession>('/api/session'); csrfToken = value.csrf; return value
+let sessionRequest: Promise<OperationSession> | null = null
+export function restoreSession() {
+ if (!sessionRequest) sessionRequest = request<OperationSession>('/api/session').then(value => { csrfToken = value.csrf; return value }).finally(() => { sessionRequest = null })
+ return sessionRequest
 }
 export async function loginSession(token: string) {
  operationsToken = ''

@@ -21,6 +21,8 @@ function Incidents({ onNewInvestigation, onSelectIncident }: IncidentsProps) {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const statusError = ''
+  const [page, setPage] = useState(1)
+  const [sort, setSort] = useState('newest')
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All statuses')
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('All severities')
@@ -67,6 +69,12 @@ function Incidents({ onNewInvestigation, onSelectIncident }: IncidentsProps) {
       && (severityFilter === 'All severities' || incident.severity === severityFilter)
   }), [incidents, query, statusFilter, severityFilter])
 
+  const sortedIncidents = [...visibleIncidents].sort((a, b) => {
+    if (sort === 'severity') return ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity)
+    const difference = Date.parse(b.updatedAt || b.createdAt) - Date.parse(a.updatedAt || a.createdAt)
+    return sort === 'oldest' ? -difference : difference
+  })
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(sortedIncidents.length / 20)))
   const incidentContext = (incident: Incident) => ({ Open: 'Ready for investigation', Investigating: 'Durable investigation queued or running', 'Awaiting review': 'Findings require human review', 'Remediation planned': 'Plan and approval', 'In remediation': 'Approved external remediation', Verifying: 'Recovery evidence required', Resolved: 'Resolution recorded; reopening remains available' }[incident.status])
 
   const rowAction = (incident: Incident) => <button type="button" onClick={() => void onSelectIncident(incident._id)}>Open workspace</button>
@@ -87,10 +95,10 @@ function Incidents({ onNewInvestigation, onSelectIncident }: IncidentsProps) {
       </section>
 
       <section className="incident-summary">
-        <article className="incident-summary-card"><span>ACTIVE</span><strong>{activeCount}</strong><small>Investigating or ready for engineering work</small></article>
-        <article className="incident-summary-card"><span>AWAITING REVIEW</span><strong>{awaitingReviewCount}</strong><small>Action verification needed</small></article>
-        <article className="incident-summary-card"><span>RESOLVED</span><strong>{resolvedCount}</strong><small>Verified or no-action incidents closed</small></article>
-        <article className="incident-summary-card"><span>TOTAL</span><strong>{incidents.length}</strong><small>Persisted incident records</small></article>
+        <article className="incident-summary-card"><span>ACTIVE</span><strong>{loading ? '…' : error ? '—' : activeCount}</strong><small>Investigating or ready for engineering work</small></article>
+        <article className="incident-summary-card"><span>AWAITING REVIEW</span><strong>{loading ? '…' : error ? '—' : awaitingReviewCount}</strong><small>Action verification needed</small></article>
+        <article className="incident-summary-card"><span>RESOLVED</span><strong>{loading ? '…' : error ? '—' : resolvedCount}</strong><small>Verified or no-action incidents closed</small></article>
+        <article className="incident-summary-card"><span>TOTAL</span><strong>{loading ? '…' : error ? '—' : incidents.length}</strong><small>Persisted incident records</small></article>
       </section>
 
       <section className="incidents-panel">
@@ -100,6 +108,7 @@ function Incidents({ onNewInvestigation, onSelectIncident }: IncidentsProps) {
         </div>
 
         <div className="incident-filters">
+          <select aria-label="Sort incidents" value={sort} onChange={event => { setSort(event.target.value); setPage(1) }}><option value="newest">Recently updated</option><option value="oldest">Oldest update</option><option value="severity">Severity</option></select>
           <input aria-label="Search incidents" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, service, or ID" />
           <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
             <option>All statuses</option><option>Investigating</option><option>Open</option><option>Awaiting review</option><option>Remediation planned</option><option>In remediation</option><option>Verifying</option><option>Resolved</option>
@@ -116,7 +125,7 @@ function Incidents({ onNewInvestigation, onSelectIncident }: IncidentsProps) {
           <div className="incident-table-header"><span>INCIDENT</span><span>SERVICE</span><span>SEVERITY</span><span>STATUS</span><span>UPDATED</span><span>NEXT STEP</span></div>
           {loading && <div className="incident-table-message">Loading incidents…</div>}
           {!loading && !error && visibleIncidents.length === 0 && <div className="incident-table-message">{incidents.length === 0 ? 'No incidents yet. Start an investigation to create the first incident record.' : 'No incidents match these filters.'}</div>}
-          {!loading && visibleIncidents.map((incident) => (
+          {!loading && sortedIncidents.slice((currentPage - 1) * 20, currentPage * 20).map((incident) => (
             <div className="incident-row" key={incident._id}>
               <button type="button" className="incident-title" onClick={() => void onSelectIncident(incident._id)}>
                 <span className="incident-id">{incident._id}</span>
@@ -131,6 +140,7 @@ function Incidents({ onNewInvestigation, onSelectIncident }: IncidentsProps) {
             </div>
           ))}
         </div>
+        <p>Page {currentPage} <button disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous incidents</button> <button disabled={currentPage * 20 >= sortedIncidents.length} onClick={() => setPage(currentPage + 1)}>Next incidents</button></p>
       </section>
 
       <section className="incident-evidence">

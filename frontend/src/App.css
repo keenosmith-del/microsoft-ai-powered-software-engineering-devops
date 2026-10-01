@@ -898,3 +898,27 @@ textarea:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+.command-trigger { margin: 0 32px 16px; }
+.command-palette { background: #151515; color: #eee; border: 0; border-radius: 24px; padding: 24px; width: min(640px, calc(100vw - 32px)); max-height: 80dvh; }
+.command-palette::backdrop { background: rgb(0 0 0 / 70%); }
+.command-palette > div { display: flex; gap: 12px; }
+.command-palette input { flex: 1; min-width: 0; border-radius: 24px; padding: 12px; background: #242424; color: white; }
+.command-palette ul { list-style: none; padding: 0; }
+.command-palette li button { width: 100%; text-align: left; padding: 12px; border: 0; border-radius: 20px; background: transparent; color: inherit; overflow-wrap: anywhere; }
+.command-palette li button.selected, .command-palette li button:hover { background: #303030; }
+.live-topology ol { display: flex; flex-wrap: wrap; gap: 32px; padding: 24px; }
+.live-topology li { flex: 1; min-width: 170px; }
+.live-topology span { display: block; margin-top: 10px; text-transform: capitalize; }
+.live-topology [data-state="running"] { color: #fff; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #ddd; outline-offset: 4px; }
+pre { max-width: 100%; overflow-x: auto; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+.operations-queue { margin: 32px 0 48px; }
+.operations-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+.operations-columns p { overflow-wrap: anywhere; }
+@media (max-width: 800px) { .operations-columns { grid-template-columns: 1fr; } }
+.command-trigger, .command-palette > div > button { background: #202020; color: #eee; border: 0; padding: 10px 16px; font: inherit; font-size: 12px; cursor: pointer; }
+.command-trigger kbd { margin-left: 12px; color: #aaa; font: inherit; }
+.command-palette input { border: 0; font: inherit; }
+.phase2-workspace a, .incident-workspace a { color: #ddd; text-underline-offset: 3px; }
