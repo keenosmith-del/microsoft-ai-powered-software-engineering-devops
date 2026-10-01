@@ -1,0 +1,22 @@
+# Optional local MongoDB. Existing compose.yaml continues supporting external MongoDB.
+services:
+  mongo:
+    image: mongo:8
+    volumes:
+      - phase2-mongo:/data/db
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  api:
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/ai-engineering-operations
+    depends_on:
+      mongo:
+        condition: service_healthy
+  agent-runtime:
+    ports:
+      - "127.0.0.1:8000:8000"
+volumes:
+  phase2-mongo:

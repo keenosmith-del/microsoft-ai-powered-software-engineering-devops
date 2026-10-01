@@ -1,141 +1,78 @@
-import { useCallback, useEffect, useState } from 'react'
-import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  GitCommit,
-  GitPullRequest,
-  Server,
-  Terminal,
-} from 'lucide-react'
-import {
-  getApiHealth,
-  getIncidents,
-  getRepository,
-  type Incident,
-  type RepositoryData,
-} from '../../services/api'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Activity, AlertTriangle, CheckCircle2, Server, Terminal } from 'lucide-react'
+import { getEngineeringOverview, type EngineeringOverview } from '../../services/api'
 import './Engineering.css'
 
-type CheckState = 'checking' | 'connected' | 'unavailable'
-type EngineeringSnapshot = {
-  api: CheckState
-  incidents: Incident[] | null
-  repository: RepositoryData | null
-  refreshedAt: Date | null
-}
-
-const initialSnapshot: EngineeringSnapshot = {
-  api: 'checking',
-  incidents: null,
-  repository: null,
-  refreshedAt: null,
-}
+const label = (value: string) => value.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase())
 
 function Engineering() {
-  const [snapshot, setSnapshot] = useState(initialSnapshot)
+  const [snapshot, setSnapshot] = useState<EngineeringOverview | null>(null)
   const [refreshing, setRefreshing] = useState(true)
-
+  const [error, setError] = useState<string | null>(null)
+  const [latency, setLatency] = useState<number | null>(null)
+  const controller = useRef<AbortController | null>(null)
   const refresh = useCallback(async () => {
-    const [healthResult, incidentsResult, repositoryResult] = await Promise.allSettled([
-      getApiHealth(),
-      getIncidents(),
-      getRepository(),
-    ])
-
-    setSnapshot({
-      api: healthResult.status === 'fulfilled' && healthResult.value.status === 'ok'
-        ? 'connected'
-        : 'unavailable',
-      incidents: incidentsResult.status === 'fulfilled' ? incidentsResult.value : null,
-      repository: repositoryResult.status === 'fulfilled' ? repositoryResult.value : null,
-      refreshedAt: new Date(),
-    })
-    setRefreshing(false)
-  }, [])
-
-  useEffect(() => {
-    const initialLoad = window.setTimeout(() => void refresh(), 0)
-    const interval = window.setInterval(() => void refresh(), 30_000)
-    return () => {
-      window.clearTimeout(initialLoad)
-      window.clearInterval(interval)
+    controller.current?.abort()
+    const current = new AbortController()
+    controller.current = current
+    const timer = window.setTimeout(() => current.abort(), 20_000)
+    setRefreshing(true)
+    const start = performance.now()
+    try {
+      const result = await getEngineeringOverview(current.signal)
+      if (!current.signal.aborted) {
+        setSnapshot(result)
+        setLatency(Math.round(performance.now() - start))
+        setError(null)
+      }
+    } catch (failure) {
+      if (controller.current === current) setError(failure instanceof Error ? failure.message : 'Overview unavailable')
+    } finally {
+      window.clearTimeout(timer)
+      if (controller.current === current) setRefreshing(false)
     }
+  }, [])
+  useEffect(() => {
+    const initial = window.setTimeout(() => void refresh(), 0)
+    const interval = window.setInterval(() => void refresh(), 30_000)
+    return () => { window.clearTimeout(initial); window.clearInterval(interval); controller.current?.abort() }
   }, [refresh])
-
-  const activeIncidents = snapshot.incidents?.filter((incident) =>
-    incident.status === 'Investigating' || incident.status === 'Open',
-  ) ?? []
-  const connectedCount = [
-    snapshot.api === 'connected',
-    snapshot.incidents !== null,
-    snapshot.repository !== null,
-  ].filter(Boolean).length
-  const overallState = connectedCount === 3 ? 'Connected' : connectedCount > 0 ? 'Partial' : 'Unavailable'
-  const activeSignals = activeIncidents.filter((incident) =>
-    incident.severity === 'Critical' || incident.severity === 'High',
-  )
-  const services: { name: string; detail: string; state: CheckState }[] = [
-    { name: 'Platform API', detail: 'Engineering operations backend', state: snapshot.api },
-    { name: 'Incident store', detail: 'Incident data service', state: snapshot.incidents === null ? (refreshing ? 'checking' : 'unavailable') : 'connected' },
-    { name: 'Agent and repository runtime', detail: snapshot.repository?.repository.full_name ?? 'Repository integration', state: snapshot.repository === null ? (refreshing ? 'checking' : 'unavailable') : 'connected' },
-  ]
-  const stateLabel = (state: CheckState) => ({ checking: 'Checking', connected: 'Connected', unavailable: 'Unavailable' })[state]
-
+  const services = snapshot?.services ?? []
+  const responding = services.filter(s => s.status === 'operational').length
+  const overall = !snapshot ? (refreshing ? 'Checking' : 'Unavailable') : error ? 'Stale' : services.some(s => s.status === 'unavailable' || s.status === 'degraded') ? 'Degraded' : 'Partial'
+  const metric = (value: number | null | undefined) => value ?? (refreshing && !snapshot ? 'Loading' : 'Unavailable')
   return (
     <section className="engineering-page">
       <div className="engineering-header">
-        <div>
-          <span className="eyebrow">ENGINEERING</span>
-          <h1>Engineering intelligence</h1>
-          <p>Live application health, repository activity, and engineering signals from connected platform services.</p>
-        </div>
+        <div><span className="eyebrow">ENGINEERING</span><h1>Engineering intelligence</h1><p>Measured dependency health and persisted incident activity.</p></div>
         <div className="engineering-runtime">
-          <div className={`runtime-indicator is-${overallState.toLowerCase()}`} role="status"><span className="runtime-dot" />{overallState} · {connectedCount}/3 sources</div>
-          <span>{refreshing ? 'Refreshing data…' : snapshot.refreshedAt ? `Updated ${snapshot.refreshedAt.toLocaleTimeString()}` : 'Waiting for data'}</span>
+          <div className={`runtime-indicator is-${overall.toLowerCase()}`} role="status"><span className="runtime-dot" />{overall}</div>
+          <span>{snapshot ? `Checked ${new Date(snapshot.checkedAt).toLocaleString()}${snapshot.cached ? ' · Cached' : ''}` : 'Waiting for data'}</span>
+          <button type="button" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh'}</button>
         </div>
       </div>
-
+      {error && <p role="alert">{error}{snapshot ? ' · Showing last successful snapshot; data is stale.' : ''}</p>}
       <div className="engineering-metrics">
-        <article className="engineering-metric"><div className="engineering-metric-icon"><Activity size={17} /></div><div><span>APPLICATION HEALTH</span><strong>{stateLabel(snapshot.api)}</strong><small>{snapshot.api === 'connected' ? 'Backend health endpoint responded' : 'Live backend health check'}</small></div></article>
-        <article className="engineering-metric"><div className="engineering-metric-icon"><GitCommit size={17} /></div><div><span>RECENT COMMITS</span><strong>{snapshot.repository ? snapshot.repository.recent_commits.length : refreshing ? 'Loading' : 'Unavailable'}</strong><small>{snapshot.repository?.repository.full_name ?? 'Repository activity'}</small></div></article>
-        <article className="engineering-metric"><div className="engineering-metric-icon"><Server size={17} /></div><div><span>CONNECTED SOURCES</span><strong>{connectedCount} / 3</strong><small>API, incident store, repository runtime</small></div></article>
-        <article className="engineering-metric"><div className="engineering-metric-icon"><AlertTriangle size={17} /></div><div><span>ACTIVE SIGNALS</span><strong>{snapshot.incidents === null ? (refreshing ? 'Loading' : 'Unavailable') : activeSignals.length}</strong><small>{snapshot.incidents === null ? 'Incident data not available' : 'Open high or critical incidents'}</small></div></article>
+        <article className="engineering-metric"><div className="engineering-metric-icon"><Activity size={17} /></div><div><span>API RESPONSE</span><strong>{latency === null ? 'Unknown' : `${latency} ms`}</strong><small>Browser to gateway round trip</small></div></article>
+        <article className="engineering-metric"><div className="engineering-metric-icon"><AlertTriangle size={17} /></div><div><span>ACTIVE INCIDENTS</span><strong>{metric(snapshot?.metrics.activeIncidents)}</strong><small>All persisted unresolved incidents</small></div></article>
+        <article className="engineering-metric"><div className="engineering-metric-icon"><Server size={17} /></div><div><span>OPERATIONAL SERVICES</span><strong>{snapshot ? `${responding} / ${services.length}` : 'Unknown'}</strong><small>Configuration alone does not prove connectivity</small></div></article>
+        <article className="engineering-metric"><div className="engineering-metric-icon"><AlertTriangle size={17} /></div><div><span>HIGH PRIORITY SIGNALS</span><strong>{metric(snapshot?.metrics.highPrioritySignals)}</strong><small>Unresolved high or critical incidents</small></div></article>
       </div>
-
       <div className="engineering-grid">
         <section className="engineering-panel engineering-health">
-          <div className="engineering-panel-header"><div><span className="eyebrow">SYSTEM HEALTH</span><h2>Connected services</h2></div><span className={`panel-status is-${overallState.toLowerCase()}`} role="status"><span className="panel-status-dot" />{overallState}</span></div>
-          <div className="health-overview">
-            <div className="health-score"><strong>{connectedCount}/3</strong><span>Sources responding</span></div>
-            <div className="health-services">{services.map((service) => <div className={`health-service is-${service.state}`} key={service.name}><div><span>{service.name}</span><small>{service.detail}</small></div>{service.state === 'connected' ? <CheckCircle2 size={16} aria-label="Connected" /> : <span>{stateLabel(service.state)}</span>}</div>)}</div>
-          </div>
+          <div className="engineering-panel-header"><div><span className="eyebrow">SYSTEM HEALTH</span><h2>Connected services</h2></div></div>
+          <div className="health-services">{services.map(service => <div className={`health-service is-${service.status === 'operational' ? 'connected' : 'unavailable'}`} key={service.id}><div><span>{label(service.id)}</span><small>{service.detail}</small><small>{new Date(service.checkedAt).toLocaleTimeString()}{service.responseTimeMs !== undefined ? ` · ${service.responseTimeMs} ms` : ''}</small></div><span>{label(service.status)}</span></div>)}{!snapshot && <p>{refreshing ? 'Checking services…' : 'Service checks unavailable'}</p>}</div>
         </section>
-
         <section className="engineering-panel">
-          <div className="engineering-panel-header"><div><span className="eyebrow">ENGINEERING SIGNALS</span><h2>Active incidents</h2></div><span className="signal-count">{snapshot.incidents === null ? '—' : `${activeIncidents.length} active`}</span></div>
-          {snapshot.incidents === null ? <div className="engineering-empty-state"><div className="engineering-empty-icon"><AlertTriangle size={20} /></div><h3>{refreshing ? 'Loading incident signals' : 'Incident data unavailable'}</h3><p>{refreshing ? 'Checking the incident service.' : 'The backend did not return incident data. It will be retried automatically.'}</p></div> : activeIncidents.length === 0 ? <div className="engineering-empty-state"><div className="engineering-empty-icon"><CheckCircle2 size={20} /></div><h3>No active incidents</h3><p>There are no incidents currently open or under investigation.</p></div> : <div className="engineering-context-list">{activeIncidents.slice(0, 5).map((incident) => <div key={incident._id}><span>{incident.title}</span><strong>{incident.severity} · {incident.status}</strong></div>)}</div>}
+          <div className="engineering-panel-header"><div><span className="eyebrow">ENGINEERING SIGNALS</span><h2>Active incidents</h2></div></div>
+          {snapshot?.dataError ? <p role="status">{snapshot.dataError}</p> : !snapshot ? <p>Waiting for incident data</p> : snapshot.signals.length === 0 ? <div className="engineering-empty-state"><CheckCircle2 size={20} /><h3>No active incidents</h3></div> : <div className="engineering-context-list">{snapshot.signals.map(incident => <div key={incident._id}><span>{incident.title}</span><strong>{incident.severity} · {incident.status}</strong></div>)}</div>}
         </section>
       </div>
-
       <div className="engineering-grid">
-        <section className="engineering-panel">
-          <div className="engineering-panel-header"><div><span className="eyebrow">REPOSITORY</span><h2>Repository activity</h2></div><GitPullRequest size={17} /></div>
-          {snapshot.repository ? <div className="engineering-repository-list"><div className="repository-placeholder"><GitCommit size={18} /><div><strong>{snapshot.repository.repository.full_name}</strong><span>{snapshot.repository.branch.name} · {snapshot.repository.repository.language ?? 'Language not reported'}</span></div></div>{snapshot.repository.recent_commits.slice(0, 5).map((commit) => <div className="repository-placeholder" key={commit.sha}><GitCommit size={18} /><div><strong>{commit.message.split('\n')[0]}</strong><span>{commit.author ?? 'Unknown author'} · {commit.date ? new Date(commit.date).toLocaleString() : 'Date unavailable'}</span></div></div>)}</div> : <div className="repository-placeholder"><GitCommit size={18} /><div><strong>{refreshing ? 'Loading repository activity' : 'Repository unavailable'}</strong><span>{refreshing ? 'Requesting live repository data.' : 'Check the repository and agent runtime connection.'}</span></div></div>}
-        </section>
-
-        <section className="engineering-panel">
-          <div className="engineering-panel-header"><div><span className="eyebrow">ENGINEERING TOOLS</span><h2>Available context</h2></div><Terminal size={17} /></div>
-          <div className="engineering-context-list">
-            <div><span>Platform API</span><strong>{stateLabel(snapshot.api)}</strong></div>
-            <div><span>Incident history</span><strong>{snapshot.incidents === null ? (refreshing ? 'Checking' : 'Unavailable') : `${snapshot.incidents.length} records`}</strong></div>
-            <div><span>GitHub repository</span><strong>{snapshot.repository?.repository.full_name ?? (refreshing ? 'Checking' : 'Unavailable')}</strong></div>
-            <div><span>Current branch</span><strong>{snapshot.repository?.branch.name ?? '—'}</strong></div>
-          </div>
-        </section>
+        <section className="engineering-panel"><div className="engineering-panel-header"><div><span className="eyebrow">ACTIVITY</span><h2>Recent incident updates</h2></div></div>{snapshot?.dataError ? <p>{snapshot.dataError}</p> : <div className="engineering-context-list">{snapshot?.activity.map(item => <div key={item._id}><span>{item.title}</span><strong>{item.status} · {new Date(item.updatedAt).toLocaleString()}</strong></div>)}{snapshot && snapshot.activity.length === 0 && <p>No persisted activity</p>}</div>}</section>
+        <section className="engineering-panel"><div className="engineering-panel-header"><div><span className="eyebrow">DATA COVERAGE</span><h2>Available context</h2></div><Terminal size={17} /></div><div className="engineering-context-list"><div><span>Incident history</span><strong>{metric(snapshot?.metrics.totalIncidents)}</strong></div><div><span>Investigation execution history</span><strong>{metric(snapshot?.metrics.completedInvestigations)} completed · {metric(snapshot?.metrics.failedInvestigations)} failed</strong></div><div><span>Snapshot cache</span><strong>{snapshot ? `${snapshot.cacheTtlMs / 1000} seconds` : 'Unknown'}</strong></div></div></section>
       </div>
     </section>
   )
 }
-
 export default Engineering

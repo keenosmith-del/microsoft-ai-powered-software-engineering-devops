@@ -1,4 +1,5 @@
 import os
+from evidence_context import SAFETY_INSTRUCTION
 
 from pathlib import Path
 
@@ -45,6 +46,7 @@ class FoundryClient:
         response = self.client.chat.completions.create(
             model=self.deployment,
             messages=[
+                {"role": "system", "content": SAFETY_INSTRUCTION},
                 {
                     "role": "user",
                     "content": prompt,

@@ -7,8 +7,9 @@ import {
   Wrench,
 } from 'lucide-react'
 import './Agents.css'
+import ExecutionConsole from './ExecutionConsole'
 
-type AgentStatus = 'Ready' | 'Available'
+type AgentStatus = 'Role defined'
 
 type Agent = {
   number: string
@@ -29,7 +30,7 @@ const agents: Agent[] = [
       'Analyses application code, architecture, repository structure, and engineering implementation details.',
     responsibility: 'Code & architecture analysis',
     icon: GitBranch,
-    status: 'Ready',
+    status: 'Role defined',
     inputs: [
       'Repository structure',
       'Source code',
@@ -49,7 +50,7 @@ const agents: Agent[] = [
       'Investigates reported incidents by evaluating symptoms, repository evidence, recent changes, and available engineering context.',
     responsibility: 'Evidence & root-cause analysis',
     icon: Search,
-    status: 'Ready',
+    status: 'Role defined',
     inputs: [
       'Incident description',
       'Repository evidence',
@@ -69,7 +70,7 @@ const agents: Agent[] = [
       'Converts investigation findings into practical engineering recommendations and remediation actions.',
     responsibility: 'Recommended remediation',
     icon: Wrench,
-    status: 'Available',
+    status: 'Role defined',
     inputs: [
       'Investigation findings',
       'Root-cause hypotheses',
@@ -102,7 +103,7 @@ function Agents() {
           <span className="agents-status-dot" />
           <div>
             <span>AGENT RUNTIME</span>
-            <strong>Ready</strong>
+            <strong>See execution history</strong>
           </div>
         </div>
       </section>
@@ -239,6 +240,7 @@ function Agents() {
           </div>
         </div>
       </section>
+    <ExecutionConsole />
     </main>
   )
 }

@@ -5,7 +5,8 @@ from urllib.parse import urlparse
 
 from azure.identity import DefaultAzureCredential
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from evidence_context import grounded_problem
 
 from agents.software_engineering_agent import SoftwareEngineeringAgent
 from agents.incident_investigation_agent import IncidentInvestigationAgent
@@ -20,8 +21,16 @@ app = FastAPI(
 )
 
 
+class RetrievedEvidence(BaseModel):
+    document_id: str = Field(min_length=1, max_length=100)
+    section: str = Field(max_length=200)
+    ordinal: int = Field(ge=0)
+    text: str = Field(max_length=2000)
+
+
 class EngineeringProblem(BaseModel):
-    problem: str
+    problem: str = Field(min_length=1, max_length=100000)
+    retrieved_evidence: list[RetrievedEvidence] = Field(default_factory=list, max_length=5)
 
 
 @app.get("/health")
@@ -154,21 +163,23 @@ def analyse(request: EngineeringProblem):
             detail="problem cannot be empty",
         )
 
+    problem = grounded_problem(request.problem, [entry.model_dump() for entry in request.retrieved_evidence])
+
     try:
         software_engineering_agent = SoftwareEngineeringAgent()
         incident_investigation_agent = IncidentInvestigationAgent()
         engineering_action_agent = EngineeringActionAgent()
 
         analysis = software_engineering_agent.analyse(
-            request.problem
+            problem
         )
 
         investigation = incident_investigation_agent.investigate(
-            incident=request.problem
+            incident=problem
         )
 
         actions = engineering_action_agent.recommend(
-            incident=request.problem,
+            incident=problem,
             investigation=investigation,
         )
 

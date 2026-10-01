@@ -19,6 +19,7 @@ import {
   type EngineeringActionStatus,
 } from '../../services/api'
 import './Actions.css'
+import ProposalWorkspace from './ProposalWorkspace'
 
 type ConnectionState = 'checking' | 'connected' | 'unavailable'
 type ActionsProps = {
@@ -193,7 +194,8 @@ function Actions({ incidentId, onClearIncidentFilter, onBackToIncidents }: Actio
           <section className="actions-context-card principle-card"><span className="eyebrow">EXECUTION PRINCIPLE</span><p>These controls track review and verification state. They do not apply code or modify cloud resources.</p></section>
         </aside>
       </section>
-    </main>
+    <ProposalWorkspace />
+      </main>
   )
 }
 

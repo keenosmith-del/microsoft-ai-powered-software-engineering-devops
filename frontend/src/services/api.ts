@@ -1,7 +1,9 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5050').replace(/\/$/, '')
 
 async function request<T>(path: string, init?: RequestInit, fallback = 'Request failed'): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, init)
+  const timeout = AbortSignal.timeout(path === '/api/analyse' || path.endsWith('/retry') ? 310_000 : 30_000)
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, signal })
   const data = await response.json().catch(() => null)
 
   if (!response.ok) {
@@ -165,6 +167,8 @@ export type RepositoryCommit = {
 
 export type RepositoryData = {
   success: boolean
+  page?: number
+  hasNext?: boolean
   repository: {
     name: string
     full_name: string
@@ -193,6 +197,95 @@ export type RepositoryData = {
   } | null
 }
 
-export async function getRepository(): Promise<RepositoryData> {
-  return request<RepositoryData>('/api/repository', undefined, 'Failed to fetch repository data')
+export async function getRepository(branch = '', page = 1, signal?: AbortSignal): Promise<RepositoryData> {
+  return request<RepositoryData>(`/api/repository?${new URLSearchParams({ ...(branch ? { branch } : {}), page: String(page) })}`, { signal }, 'Failed to fetch repository data')
+}
+
+export type ServiceHealth = {
+  id: string
+  status: 'operational' | 'degraded' | 'unavailable' | 'unknown' | 'not_configured'
+  checkedAt: string
+  responseTimeMs?: number
+  detail?: string
+}
+export type EngineeringOverview = {
+  checkedAt: string
+  cached: boolean
+  cacheTtlMs: number
+  services: ServiceHealth[]
+  metrics: { activeIncidents: number | null; totalIncidents: number | null; highPrioritySignals: number | null; completedInvestigations: number | null; failedInvestigations: number | null }
+  activity: Pick<Incident, '_id' | 'title' | 'status' | 'severity' | 'updatedAt'>[]
+  signals: Pick<Incident, '_id' | 'title' | 'status' | 'severity' | 'updatedAt'>[]
+  dataError: string | null
+}
+export async function getEngineeringOverview(signal?: AbortSignal): Promise<EngineeringOverview> {
+  return request<EngineeringOverview>('/api/engineering/overview', { signal }, 'Engineering overview unavailable')
+}
+
+export type RepositoryRun = { id: number; name: string; head_branch: string; head_sha: string; status: string; conclusion: string | null; html_url: string; created_at: string; run_attempt: number }
+export type RepositoryActivity = {
+  checkedAt: string
+  page: number
+  runs: { status: string; error?: string; hasNext?: boolean; items: RepositoryRun[] | null }
+  workflows: { status: string; error?: string; items: { id: number; name: string; state: string; html_url: string }[] | null }
+  pulls: { status: string; error?: string; items: { number: number; title: string; state: string; html_url: string; updated_at: string }[] | null }
+  deployments: { status: string; error?: string; items: { id: number; sha: string; ref: string; environment: string; created_at: string }[] | null }
+}
+export type RepositoryJobs = { items: { id: number; name: string; status: string; conclusion: string | null; html_url: string; steps: { number: number; name: string; conclusion: string | null; status: string }[] }[]; page: number; hasNext: boolean }
+export function getRepositoryActivity(branch: string, page: number, signal?: AbortSignal) {
+  return request<RepositoryActivity>(`/api/repository/activity?${new URLSearchParams({ ...(branch ? { branch } : {}), page: String(page) })}`, { signal })
+}
+export function getRepositoryJobs(id: number, signal?: AbortSignal) {
+  return request<RepositoryJobs>(`/api/repository/runs/${id}/jobs`, { signal })
+}
+export type AzureInventory = { checkedAt: string; truncated: boolean; items: { id: string; name: string; type: string; location: string; provisioningState: string | null; portalUrl: string }[] }
+export type AzureActivity = { checkedAt: string; truncated: boolean; start: string; end: string; items: { id: string; timestamp: string; operation: string; status: string; resourceId: string; correlationId: string; level: string }[] }
+export function getAzureInventory(group: string, signal?: AbortSignal) {
+  return request<AzureInventory>(`/api/azure/inventory?${new URLSearchParams({ group })}`, { signal })
+}
+export function getAzureActivity(group: string, hours: number, signal?: AbortSignal) {
+  return request<AzureActivity>(`/api/azure/activity?${new URLSearchParams({ group, hours: String(hours) })}`, { signal })
+}
+export type InvestigationRun = {
+  runId: string; incidentId: string; status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+  currentStage: string; attempts: number; deployment?: string; correlationId: string
+  createdAt: string; startedAt?: string; completedAt?: string; elapsedMs?: number; error?: string
+  result?: { analysis: string; investigation: string; actions: string }
+  events: { id: number; status: string; stage: string; at: string; detail: string }[]
+}
+export function getInvestigationRuns(token: string, page: number, signal?: AbortSignal) {
+  return request<{ items: InvestigationRun[]; page: number; hasNext: boolean }>(`/api/investigations?page=${page}`, { headers: { Authorization: `Bearer ${token}` }, signal })
+}
+export function submitInvestigation(token: string, incidentId: string, key: string) {
+  return request<InvestigationRun>(`/api/incidents/${incidentId}/investigations`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: JSON.stringify({ triggerSource: 'manual' }) })
+}
+export function cancelInvestigation(token: string, runId: string) {
+  return request<InvestigationRun>(`/api/investigations/${runId}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+}
+export type KnowledgeSource = { _id: string; title: string; sourceUrl?: string; indexedAt: string; method: string }
+export type KnowledgeHit = { documentId: string; title: string; sourceUrl: string | null; indexedAt: string; section: string; ordinal: number; text: string; score: number; method: string }
+export function listKnowledge(token: string) {
+  return request<{ workspace: string; method: string; items: KnowledgeSource[]; hasNext: boolean }>('/api/knowledge', { headers: { Authorization: `Bearer ${token}` } })
+}
+export function ingestKnowledge(token: string, title: string, text: string, sourceUrl: string) {
+  return request('/api/knowledge', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ title, text, ...(sourceUrl ? { sourceUrl } : {}) }) })
+}
+export function searchKnowledge(token: string, query: string) {
+  return request<{ method: string; truncated: boolean; results: KnowledgeHit[] }>(`/api/knowledge/search?q=${encodeURIComponent(query)}`, { headers: { Authorization: `Bearer ${token}` } })
+}
+export function deleteKnowledge(token: string, id: string) {
+  return request(`/api/knowledge/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+}
+export type RemediationProposal = {
+  _id: string; incidentId: string; runId: string; title: string; action: string; rationale: string; validationPlan: string; target: string; risk: string; approvalStatus: 'pending' | 'approved' | 'rejected'; executionStatus: 'disabled'; version: number
+  audit: { actor: string; at: string; action: string; version: number }[]
+}
+export function listProposals(token: string) {
+  return request<{ items: RemediationProposal[]; hasNext: boolean }>('/api/remediation', { headers: { Authorization: `Bearer ${token}` } })
+}
+export function createProposal(token: string, body: Omit<RemediationProposal, '_id' | 'approvalStatus' | 'executionStatus' | 'version' | 'audit'>) {
+  return request<RemediationProposal>('/api/remediation', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+}
+export function reviewProposal(token: string, proposal: RemediationProposal, decision: 'approved' | 'rejected', comment: string) {
+  return request<RemediationProposal>(`/api/remediation/${proposal._id}/review`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ decision, version: proposal.version, comment }) })
 }

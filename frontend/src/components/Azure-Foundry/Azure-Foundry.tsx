@@ -17,6 +17,7 @@ import {
   type CloudPlatformStatus,
 } from '../../services/api'
 import './Azure-Foundry.css'
+import AzureDiagnostics from './AzureDiagnostics'
 
 type ConnectionState = 'checking' | 'connected' | 'unavailable'
 
@@ -187,7 +188,8 @@ function AzureFoundry() {
       </section>
 
       <section className="azure-actions"><div><span className="eyebrow">PLATFORM MANAGEMENT</span><h2>Azure / Foundry resources</h2></div><a type="button" className="azure-external-button" href="https://portal.azure.com/" target="_blank" rel="noreferrer"><span>Open Azure Portal</span><ExternalLink size={14} strokeWidth={1.5} /></a></section>
-    </main>
+    <AzureDiagnostics />
+      </main>
   )
 }
 

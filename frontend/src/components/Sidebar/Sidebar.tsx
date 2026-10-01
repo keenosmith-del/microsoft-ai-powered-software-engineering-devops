@@ -1,5 +1,5 @@
 import {
-  Bot,
+  Bot, BookOpen,
   Cloud,
   GitBranch,
   LayoutDashboard,
@@ -51,6 +51,7 @@ const navigation: SidebarItem[] = [
     icon: Bot,
     view: 'agents',
   },
+  { label: 'Knowledge', icon: BookOpen, view: 'knowledge' },
   {
     label: 'Azure / Foundry',
     icon: Cloud,

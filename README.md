@@ -8,7 +8,7 @@ This repository contains a working full-stack prototype for an AI-assisted engin
 
 The current execution path connects a React/TypeScript frontend to a Node.js/Express REST API, which delegates analysis to a separate Python/FastAPI runtime. The runtime calls Microsoft Foundry through its OpenAI-compatible chat completions endpoint, gathers read-only repository evidence using the GitHub REST API, and can inspect Azure Resource Manager resources using the caller's Azure identity. MongoDB stores incidents and their generated outputs.
 
-This is a prototype, not yet an autonomous production remediation system. The code can recommend an engineering action and track its review status; it does not edit source code, create pull requests, run CI/CD, or deploy changes. Several capabilities described in the project vision—including RAG/vector search, Azure AI Search, telemetry correlation, formal AI evaluation, and production deployment automation—are future direction rather than active runtime features.
+This is a prototype, not yet an autonomous production remediation system. The code can recommend an engineering action and track its review status; it does not edit source code, create pull requests, run CI/CD, or deploy changes. The additive Phase 2 foundation now includes local lexical retrieval and persisted investigation runs/reviews. Vector search, Azure AI Search, detailed telemetry correlation, formal model evaluation and production deployment automation remain future direction; see the Phase 2 verification report below.
 
 ## System at a glance
 
@@ -123,9 +123,9 @@ The codebase and supporting documentation demonstrate practical work across:
 
 ## Direction and current boundaries
 
-The broader product direction is an engineering operations layer that can correlate code, CI/CD, deployments, operational telemetry, and engineering knowledge, then guide a proposed remediation through validation and human approval. Current code provides a foundation for investigation and recommendation, with repository and Azure resource evidence. Its Azure integration inspects resource metadata; it does not query Azure Monitor or Application Insights telemetry. Its GitHub integration is read-only; Azure DevOps pipelines and GitHub Actions are not executed by the application.
+The broader product direction is an engineering operations layer that can correlate code, CI/CD, deployments, operational telemetry, and engineering knowledge, then guide a proposed remediation through validation and human approval. Current code provides a foundation for investigation and recommendation, with repository and Azure resource evidence. The additive Azure adapter also reads bounded Activity Log records; Azure Monitor metrics and Application Insights queries remain unimplemented. Its GitHub integration is read-only; Azure DevOps pipelines and GitHub Actions are not executed by the application.
 
-The following are described as goals or appear in configuration/documentation, but are not implemented in the active runtime: retrieval-augmented generation and vector/semantic search, Azure AI Search indexing/querying, CI/CD and deployment control, automated code changes or pull requests, live telemetry/log/trace correlation, durable AI evaluation/observability pipelines, and a production-grade approval/security policy system. Treat action status in the UI as workflow tracking for recommendations, not proof that an external engineering change was made or verified.
+The following remain unimplemented: vector/semantic search, Azure AI Search indexing/querying, CI/CD and deployment control, automated code changes or pull requests, detailed telemetry/log/trace correlation, measured model evaluation and a production-grade multi-user approval/security policy system. The additive Phase 2 code provides scoped local lexical retrieval, durable run history, read-only CI/CD intelligence and bearer-protected review records. Treat action status in the UI as workflow tracking for recommendations, not proof that an external engineering change was made or verified.
 
 ## Further reading
 
@@ -133,3 +133,7 @@ The following are described as goals or appear in configuration/documentation, b
 - [Project overview and target workflow](docs/PROJECT_OVERVIEW.md)
 - [Engineering rationale](docs/BUILDING_AN_AI_ENGINEERING_OPS_PLATFORM.md)
 - [Archived prototypes](archive/README.md)
+
+## Phase 2 additive implementation
+
+Measured engineering health, GitHub workflow/deployment reads, scoped Azure inventory/activity, durable additive investigations, local lexical knowledge retrieval, and persisted remediation reviews are now available as an initial Phase 2 foundation. Existing incident lifecycle routes and buttons remain unchanged; the new worker is opt-in and remote remediation execution remains disabled. See [verification and remaining work](docs/phase-2/PROGRESS.md), [API/setup](docs/phase-2/API.md) and [architecture decisions](docs/phase-2/ADRs.md). This foundation does not implement every target Phase 2 capability.

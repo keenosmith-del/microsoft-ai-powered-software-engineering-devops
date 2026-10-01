@@ -24,6 +24,7 @@ import Repository from './components/Repository/Repository'
 import Agents from './components/Agents/Agents'
 import AzureFoundry from './components/Azure-Foundry/Azure-Foundry'
 import Settings from './components/Settings/Settings'
+import Knowledge from './components/Knowledge/Knowledge'
 import foundryMark from './assets/foundry.png'
 import './App.css'
 
@@ -925,6 +926,7 @@ function App() {
         {activeView === 'azure-foundry' && <AzureFoundry />}
 
         {activeView === 'settings' && <Settings />}
+        {activeView === 'knowledge' && <Knowledge />}
 
         <footer className="footer">
           <span>Engineering Operations</span>
