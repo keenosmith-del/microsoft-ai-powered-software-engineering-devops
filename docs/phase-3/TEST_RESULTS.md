@@ -1,14 +1,24 @@
-# Test evidence — 1 October 2026
+# Completion Pass 1 test evidence — 1 October 2026
 
-- Baseline backend: 28 passed, one opt-in Mongo integration skipped. Initial sandbox run failed for two HTTP test files because loopback binding was denied; rerun with permitted loopback access passed.
-- Latest expanded Node suite with PHASE2_PERSISTENCE_TEST=true: 36 passed, zero failed/skipped. Real MongoDB integration used a uniquely named p2v_<uuid> database and removed only that database on completion. This tested unique queue keys, expired lease recovery, original incident preservation, workflow CAS contention, review/change/manual verification/resolution/reopening, approved report indexing and actual lexical retrieval, targeted run delivery, outbox drain/replay without duplication, cancellation and proposal audit. Provider outputs were deterministic test fixtures, not live inference.
-- Final default Node suite after adding manual-creation injection regression: 36 passed, one opt-in Mongo test skipped. The preceding Mongo-enabled run passed all 36 tests then present.
-- Deterministic workflow tests: valid human journey; rejected/unsupported findings; failed/inconclusive verification; unapproved changes; unsafe references; report approval constraints and history preservation.
-- HTTP workflow test: authentication, invalid IDs, missing completed runs, stale and simulated competing updates, unapproved changes.
-- Legacy boundary test: explicit local bypass and production rejection of bypass. Original legacy lifecycle tests remain passing.
-- TypeScript and Vite production build passed using installed Node 24.14.1. Default npm frontend build previously selected Node 20.12.1 and failed inside Rolldown. Use Node 22.12+ or supported Node 24 and verify PATH.
-- Frontend oxlint passed.
-- Python configuration/runtime contracts: five passed; evidence context: two passed in existing project venv. No live provider call was made.
-- git diff --check passed before documentation finalization; repeat after edits.
+## Baseline
 
-Unverified: browser E2E, visual regression, touch/accessibility inspection, live Foundry inference, Azure telemetry verification, GitHub write operations, worker OS process restart/contention beyond existing lease tests, container images/startup and production deployment. No cloud feature is marked verified solely because a mocked adapter test passes.
+Committed starting HEAD: `59b0df2`. Clean initial tree. Node: 36 passed, one opt-in configured Mongo test skipped. Python: 7 passed. TypeScript/Vite build and lint passed. An initial Python invocation from the wrong directory was corrected; loopback server tests required sandbox permission. No baseline cloud writes or live inference.
+
+## Final verification
+
+- `npm test`: isolated local MongoDB included, 40 tests total, 39 passed, zero failed, one optional configured-Mongo test skipped. Tests cover canonical transitions, review restrictions, ownership/edit/approval, manual remediation and all verification outcomes, report approval/index/retrieval, history preservation and pagination, idempotent concurrent submissions, stale updates, historical adoption, real worker process termination and competing recovery workers, authorization/CSRF/session expiry, output sanitization and existing read-only integrations.
+- `(cd agent-runtime && .venv/bin/python -m unittest discover -p 'test_*.py')`: 9 tests passed, including ordered actual NDJSON execution/timing and failed-stage behavior.
+- Node 24.14.1 explicitly invoked frontend TypeScript (`tsc -b frontend`) and Vite build; frontend oxlint and `git diff --check` passed.
+- `npm run test:e2e`: two actual Chrome browser tests passed (32.6 seconds on final verification run). Real Express/MongoDB/worker/frontend with deterministic test-only provider/runtime data. No cloud credentials required. Latest evidence-history controls and session recovery without reload are included; run-history secondary sort is covered by backend pagination tests.
+
+Browser central journey: double-click creation, queued/running observation, navigate/back/refresh during work, specialist completion, accept findings, proposal/create/edit, switch to approver and reload, approve/begin manual work, record change, inconclusive/failed/revised change/passed, resolve, approve/index report, reopen/reinvestigate, previous history, bookmark and back/forward. Second browser case: reject findings/no planning, targeted cancellation, expired cookie/sign-in recovery and invalid path.
+
+Screenshots at 1280px desktop and 390px mobile were inspected. Scoped workspace remains dark, editorial, border-free and readable through long history. These screenshots are generated in ignored test-results; they are not a full visual-baseline suite. Browser expiry deliberately produces 401 console messages; assertions confirm protected access recovery rather than suppressing the errors.
+
+The worker crash test terminates a real separate worker process after claim, then advances the stored lease deadline rather than waiting a full minute; two recovery workers persist one terminal outcome. This tests fencing/recovery, not a full machine outage or multi-host production chaos run. Python stream is separately contract-tested; browser NDJSON is a test-only deterministic fixture, not live Foundry output.
+
+MongoMemoryServer used installed mongod 8.2.7; its expected-version warning (8.2.6) was nonfatal. Chrome system binary was used locally; CI installs Playwright Chromium. Optional independently configured Mongo smoke remains skipped because no test URI was supplied. Local database integration tests were not skipped.
+
+## Limits
+
+No live cloud inference, external remediation, production deployment, Docker smoke, full multi-browser/accessibility audit, large-data load, SSE disconnect stress or enterprise identity integration was verified. Existing read-only Azure/GitHub/Foundry/knowledge tests passed; all unrelated pages were not manually rechecked. No claim that the broader Phase 3 is complete.

@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 
 const incidentSchema = new mongoose.Schema(
     {
+        lifecycleVersion: Number,
+        submissionKey: { type: String, unique: true, sparse: true },
+        submissionHash: String,
         title: {
             type: String,
             required: true,
@@ -33,6 +36,9 @@ const incidentSchema = new mongoose.Schema(
                 'Open',
                 'Awaiting review',
                 'Resolved',
+                'Remediation planned',
+                'In remediation',
+                'Verifying',
             ],
             default: 'Investigating',
         },

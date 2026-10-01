@@ -13,10 +13,8 @@ import {
   getActions,
   getApiHealth,
   getRepository,
-  updateActionStatus,
   type ApiHealth,
   type EngineeringAction,
-  type EngineeringActionStatus,
 } from '../../services/api'
 import './Actions.css'
 import ProposalWorkspace from './ProposalWorkspace'
@@ -35,7 +33,6 @@ function Actions({ incidentId, onClearIncidentFilter, onBackToIncidents }: Actio
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const refresh = useCallback(async () => {
@@ -77,38 +74,14 @@ function Actions({ incidentId, onClearIncidentFilter, onBackToIncidents }: Actio
     }
   }, [refresh])
 
-  const advanceAction = async (action: EngineeringAction) => {
-    const nextStatus: Partial<Record<EngineeringActionStatus, EngineeringActionStatus>> = {
-      Recommended: 'In progress',
-      'In progress': 'Awaiting verification',
-      'Awaiting verification': 'Verified',
-    }
-    const targetStatus = nextStatus[action.status]
-    if (!targetStatus) return
-
-    setUpdatingId(action.id)
-    setError('')
-    try {
-      const updated = await updateActionStatus(action.id, targetStatus)
-      setActions((current) => current?.map((item) => item.id === updated.id ? updated : item) ?? null)
-    } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : 'Unable to update action')
-    } finally {
-      setUpdatingId(null)
-    }
-  }
+  const advanceAction = (action: EngineeringAction) => { window.history.pushState(null, '', `/incidents/${action.incidentId}`); window.dispatchEvent(new PopStateEvent('popstate')) }
 
   const visibleActions = actions?.filter((action) => !incidentId || action.incidentId === incidentId) ?? null
   const recommendedCount = visibleActions?.filter((action) => action.status === 'Recommended').length ?? 0
   const inProgressCount = visibleActions?.filter((action) => action.status === 'In progress' || action.status === 'Awaiting verification').length ?? 0
   const verifiedCount = visibleActions?.filter((action) => action.status === 'Verified').length ?? 0
   const stateText = (state: ConnectionState) => ({ checking: 'Checking', connected: 'Connected', unavailable: 'Unavailable' })[state]
-  const actionButton = (status: EngineeringActionStatus) => ({
-    Recommended: 'Start work',
-    'In progress': 'Ready for verification',
-    'Awaiting verification': 'Verify action',
-    Verified: 'Verified',
-  })[status]
+
 
   return (
     <main className="actions-page">
@@ -163,8 +136,8 @@ function Actions({ incidentId, onClearIncidentFilter, onBackToIncidents }: Actio
                     </span>
                   </div>
                 </div>
-                <button type="button" className="action-execute" onClick={() => void advanceAction(action)} disabled={updatingId === action.id || action.status === 'Verified'} title="Tracks workflow status; it does not apply code or cloud changes.">
-                  <ArrowRight size={13} strokeWidth={1.7} />{updatingId === action.id ? 'Saving…' : actionButton(action.status)}
+                <button type="button" className="action-execute" onClick={() => void advanceAction(action)}  title="Tracks workflow status; it does not apply code or cloud changes.">
+                  <ArrowRight size={13} strokeWidth={1.7} />Open incident workspace
                 </button>
               </article>
             ))}

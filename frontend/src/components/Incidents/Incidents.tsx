@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import {
   getIncidents,
-  retryIncidentInvestigation,
-  updateIncidentStatus,
   type Incident,
 } from '../../services/api'
 import './Incidents.css'
@@ -17,13 +15,12 @@ type IncidentsProps = {
 type StatusFilter = 'All statuses' | Incident['status']
 type SeverityFilter = 'All severities' | Incident['severity']
 
-function Incidents({ onNewInvestigation, onSelectIncident, onOpenActions }: IncidentsProps) {
+function Incidents({ onNewInvestigation, onSelectIncident }: IncidentsProps) {
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-  const [statusError, setStatusError] = useState('')
-  const [updatingIncidentId, setUpdatingIncidentId] = useState<string | null>(null)
+  const statusError = ''
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All statuses')
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('All severities')
@@ -58,38 +55,7 @@ function Incidents({ onNewInvestigation, onSelectIncident, onOpenActions }: Inci
     }
   }, [loadIncidents])
 
-  const handleStatusChange = async (incidentId: string, status: 'Open' | 'Resolved') => {
-    setUpdatingIncidentId(incidentId)
-    setStatusError('')
-    try {
-      const updatedIncident = await updateIncidentStatus(incidentId, status)
-      setIncidents((current) => current.map((incident) =>
-        incident._id === incidentId ? updatedIncident : incident,
-      ))
-    } catch (updateError) {
-      console.error('Failed to update incident status:', updateError)
-      setStatusError(updateError instanceof Error ? updateError.message : 'Failed to update incident status')
-    } finally {
-      setUpdatingIncidentId(null)
-    }
-  }
-
-  const handleRetry = async (incident: Incident) => {
-    setUpdatingIncidentId(incident._id)
-    setStatusError('')
-    try {
-      const updated = await retryIncidentInvestigation(incident._id)
-      setIncidents((current) => current.map((item) => item._id === updated._id ? updated : item))
-      await onSelectIncident(updated._id)
-    } catch (retryError) {
-      setStatusError(retryError instanceof Error ? retryError.message : 'Investigation retry failed')
-      await loadIncidents()
-    } finally {
-      setUpdatingIncidentId(null)
-    }
-  }
-
-  const activeCount = incidents.filter((incident) => incident.status === 'Investigating' || incident.status === 'Open').length
+  const activeCount = incidents.filter((incident) => incident.status !== 'Resolved').length
   const awaitingReviewCount = incidents.filter((incident) => incident.status === 'Awaiting review').length
   const resolvedCount = incidents.filter((incident) => incident.status === 'Resolved').length
 
@@ -101,47 +67,9 @@ function Incidents({ onNewInvestigation, onSelectIncident, onOpenActions }: Inci
       && (severityFilter === 'All severities' || incident.severity === severityFilter)
   }), [incidents, query, statusFilter, severityFilter])
 
-  const incidentContext = (incident: Incident) => {
-    if (incident.status === 'Investigating') {
-      return incident.investigationError ? 'Investigation failed · retry available' : 'Investigation is running or awaiting retry'
-    }
-    if (incident.status === 'Open') {
-      if (!incident.actions) return 'Investigation complete · no action plan returned'
-      return `Investigation complete · action ${incident.actionStatus ?? 'Recommended'}`
-    }
-    if (incident.status === 'Awaiting review') {
-      return incident.actionStatus === 'Verified' ? 'Action verified · ready to resolve' : 'Action awaiting human verification'
-    }
-    return 'Resolved · reopen to return to action queue'
-  }
+  const incidentContext = (incident: Incident) => ({ Open: 'Ready for investigation', Investigating: 'Durable investigation queued or running', 'Awaiting review': 'Findings require human review', 'Remediation planned': 'Plan and approval', 'In remediation': 'Approved external remediation', Verifying: 'Recovery evidence required', Resolved: 'Resolution recorded; reopening remains available' }[incident.status])
 
-  const rowAction = (incident: Incident) => {
-    if (updatingIncidentId === incident._id) return <span>Updating…</span>
-
-    if (incident.status === 'Investigating') {
-      return incident.investigationError
-        ? <button type="button" onClick={() => void handleRetry(incident)}>Retry investigation</button>
-        : <span className="incident-action-wait">In progress</span>
-    }
-
-    if (incident.status === 'Open') {
-      if (incident.actions) {
-        return <button type="button" onClick={() => onOpenActions(incident._id)}>
-          {incident.actionStatus === 'Verified' ? 'Review action' : 'Open action'}
-        </button>
-      }
-      return <button type="button" onClick={() => void handleStatusChange(incident._id, 'Resolved')}>Resolve incident</button>
-    }
-
-    if (incident.status === 'Awaiting review') {
-      if (incident.actionStatus === 'Verified' || !incident.actions) {
-        return <button type="button" onClick={() => void handleStatusChange(incident._id, 'Resolved')}>Resolve incident</button>
-      }
-      return <button type="button" onClick={() => onOpenActions(incident._id)}>Review linked action</button>
-    }
-
-    return <button type="button" onClick={() => void handleStatusChange(incident._id, 'Open')}>Reopen incident</button>
-  }
+  const rowAction = (incident: Incident) => <button type="button" onClick={() => void onSelectIncident(incident._id)}>Open workspace</button>
 
   return (
     <main className="incidents-page">
@@ -174,7 +102,7 @@ function Incidents({ onNewInvestigation, onSelectIncident, onOpenActions }: Inci
         <div className="incident-filters">
           <input aria-label="Search incidents" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, service, or ID" />
           <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
-            <option>All statuses</option><option>Investigating</option><option>Open</option><option>Awaiting review</option><option>Resolved</option>
+            <option>All statuses</option><option>Investigating</option><option>Open</option><option>Awaiting review</option><option>Remediation planned</option><option>In remediation</option><option>Verifying</option><option>Resolved</option>
           </select>
           <select aria-label="Filter by severity" value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value as SeverityFilter)}>
             <option>All severities</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option>

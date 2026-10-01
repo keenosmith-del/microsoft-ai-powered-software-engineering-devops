@@ -27,17 +27,36 @@ function transition(existing, body, { actor, at = new Date(), completedRun, appr
  const allowed = stages => { if (!stages.includes(w.stage)) invalid(`Action is not valid in stage ${w.stage}`); };
  switch (body.action) {
   case 'review': {
-   allowed(['detect', 'investigate', 'review', 'plan']);
+   allowed(['review', 'plan']);
    if (!completedRun || completedRun.runId !== body.runId) invalid('Review requires a completed investigation belonging to this incident');
    if (!['accepted', 'rejected'].includes(body.decision)) invalid('Review decision must be accepted or rejected');
+   if (w.lastRunId && w.lastRunId !== body.runId) invalid('Review the current completed run');
    w.reviews.push({ ...entry, runId: body.runId, decision: body.decision, evidence: evidence(body.evidence) });
-   w.stage = body.decision === 'accepted' ? 'plan' : 'investigate'; break;
+   w.currentReviewId = body.decision === 'accepted' ? entry.id : null;
+   w.stage = 'review'; break;
   }
-  case 'record-change': {
+  case 'plan-proposal': {
+   allowed(['review', 'plan']);
+   const accepted = w.reviews.find(r => r.id === w.currentReviewId);
+   if (!accepted || accepted.decision !== 'accepted' || accepted.runId !== body.runId) invalid('Planning requires current accepted findings');
+   w.proposalIds ||= []; if (!w.proposalIds.includes(body.proposalId)) w.proposalIds.push(body.proposalId);
+   w.stage = 'plan'; break;
+  }
+  case 'start-remediation': {
    allowed(['plan', 'remediate']);
-   const accepted = w.reviews.at(-1);
-   if (!approvedProposal || String(approvedProposal._id) !== body.proposalId || accepted?.decision !== 'accepted' || approvedProposal.runId !== accepted.runId) invalid('Change requires an approved proposal linked to accepted findings');
-   w.changes.push({ ...entry, proposalId: body.proposalId, reference: reference(body.reference), runId: accepted.runId });
+   const accepted = w.reviews.find(r => r.id === w.currentReviewId);
+   if (!approvedProposal || approvedProposal.reviewId !== accepted?.id || approvedProposal.runId !== accepted?.runId) invalid('Remediation requires approved proposal for current accepted findings');
+   w.stage = 'remediate'; w.currentProposalId = String(approvedProposal._id); break;
+  }
+  case 'return-remediation': allowed(['verify']); w.stage = 'remediate'; break;
+  case 'record-change': {
+   allowed(['remediate']);
+   const accepted = w.reviews.find(r => r.id === w.currentReviewId);
+   if (!approvedProposal || String(approvedProposal._id) !== body.proposalId || accepted?.decision !== 'accepted' || approvedProposal.runId !== accepted.runId || approvedProposal.reviewId !== accepted.id) invalid('Change requires an approved proposal linked to accepted findings');
+   const performedBy = text(body.performedBy, 'performing engineer', 200);
+   const performedAt = new Date(body.performedAt);
+   if (!Number.isFinite(performedAt.getTime()) || performedAt > at) invalid('Supply valid change time not in the future');
+   w.changes.push({ ...entry, performedBy, performedAt, proposalId: body.proposalId, reference: reference(body.reference), runId: accepted.runId });
    w.stage = 'verify'; break;
   }
   case 'verify': {
@@ -67,11 +86,10 @@ function transition(existing, body, { actor, at = new Date(), completedRun, appr
    report.status = 'approved'; report.approvedBy = actor; report.approvedAt = at;
    break;
   }
-  case 'reopen': allowed(['resolved']); w.stage = 'detect'; break;
+  case 'reopen': allowed(['resolved']); w.stage = 'detect'; w.currentReviewId = null; w.currentProposalId = null; break;
   case 'reinvestigate':
    allowed(['detect', 'investigate', 'review', 'plan', 'remediate', 'verify']);
    if (w.pendingInvestigation) invalid('An investigation submission is already pending');
-   w.stage = 'investigate';
    w.pendingInvestigation = { runId: randomUUID(), actor, at, notes };
    break;
   default: invalid('Unknown workflow action');

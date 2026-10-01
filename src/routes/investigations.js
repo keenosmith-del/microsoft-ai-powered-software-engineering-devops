@@ -19,7 +19,7 @@ router.get('/', async (req, res, next) => {
             if (!mongoose.isObjectIdOrHexString(req.query.incidentId)) return res.status(400).json({ error: 'Invalid incident ID' });
             query.incidentId = req.query.incidentId;
         }
-        const rows = await Run.find(query).sort({ createdAt: -1 }).skip((page - 1) * 20).limit(21).lean();
+        const rows = await Run.find(query).sort({ createdAt: -1, _id: -1 }).skip((page - 1) * 20).limit(21).lean();
         res.json({ page, hasNext: rows.length > 20, items: rows.slice(0, 20).map(publicRun) });
     } catch (error) { next(error); }
 });
@@ -29,12 +29,8 @@ async function submit(req, res, next) {
         const key = req.get('Idempotency-Key');
         const body = req.body || {};
         if (!key || !/^[\w-]{8,100}$/.test(key) || Object.keys(body).some(field => field !== 'triggerSource') || (body.triggerSource && body.triggerSource !== 'manual')) return res.status(400).json({ error: 'Use an Idempotency-Key (8–100 letters, digits, underscores or hyphens) and optional triggerSource=manual' });
-        if (!await Incident.exists({ _id: req.params.id })) return res.status(404).json({ error: 'Incident not found' });
-        const run = await Run.findOneAndUpdate({ incidentId: req.params.id, idempotencyKey: key }, { $setOnInsert: {
-            incidentId: req.params.id, idempotencyKey: key, requestedBy: req.actor, deployment: process.env.AZURE_OPENAI_DEPLOYMENT,
-            events: [{ id: 1, status: 'queued', stage: 'queued', at: new Date(), detail: 'Manual additive investigation submitted' }],
-        } }, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true });
-        res.status(202).json(publicRun(run.toObject()));
+        const run = await require('../services/incidentLifecycle').submit(req.params.id, req.actor, key);
+        res.status(202).json(publicRun(typeof run.toObject === 'function' ? run.toObject() : run));
     } catch (error) {
         if (error.code === 11000) { const run = await Run.findOne({ incidentId: req.params.id, idempotencyKey: req.get('Idempotency-Key') }).lean(); return res.status(202).json(publicRun(run)); }
         next(error);
@@ -56,7 +52,8 @@ router.post('/:runId/cancel', validId, async (req, res, next) => {
             $push: { events: { id: 100, status: 'cancelled', stage: 'cancelled', at, detail: 'Human cancellation requested' } },
         }, { returnDocument: 'after' });
         if (!run) return res.status(409).json({ error: 'Run does not exist or is already terminal' });
-        res.json(publicRun(run.toObject()));
+        await require('../services/incidentLifecycle').reconcileRun(run.toObject());
+        res.json(publicRun(typeof run.toObject === 'function' ? run.toObject() : run));
     } catch (error) { next(error); }
 });
 router.get('/:runId/events', validId, async (req, res) => {

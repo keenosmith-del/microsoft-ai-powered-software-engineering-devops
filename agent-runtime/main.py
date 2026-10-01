@@ -240,3 +240,36 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# NDJSON carries real stage starts/results while preserving the existing /analyse contract.
+@app.post('/analyse-stream')
+def analyse_stream(request: EngineeringProblem):
+    from fastapi.responses import StreamingResponse
+    import json
+    import time
+
+    if not request.problem.strip():
+        raise HTTPException(status_code=400, detail='problem cannot be empty')
+
+    def events():
+        problem = grounded_problem(request.problem, [entry.model_dump() for entry in request.retrieved_evidence])
+        investigation = ''
+        for stage in ['software-engineering', 'incident-investigation', 'engineering-action']:
+            started = time.monotonic()
+            yield json.dumps({'stage': stage, 'status': 'running', 'at': datetime.now(timezone.utc).isoformat()}) + '\n'
+            try:
+                if stage == 'software-engineering':
+                    output = SoftwareEngineeringAgent().analyse(problem)
+                elif stage == 'incident-investigation':
+                    output = IncidentInvestigationAgent().investigate(incident=problem)
+                    investigation = output
+                else:
+                    output = EngineeringActionAgent().recommend(incident=problem, investigation=investigation)
+                if not isinstance(output, str) or not output.strip() or len(output) > 200000:
+                    raise ValueError('Invalid stage output')
+                yield json.dumps({'stage': stage, 'status': 'completed', 'at': datetime.now(timezone.utc).isoformat(), 'elapsedMs': round((time.monotonic() - started) * 1000), 'output': output}) + '\n'
+            except Exception:
+                yield json.dumps({'stage': stage, 'status': 'failed', 'at': datetime.now(timezone.utc).isoformat(), 'elapsedMs': round((time.monotonic() - started) * 1000), 'error': 'Agent stage failed'}) + '\n'
+                return
+
+    return StreamingResponse(events(), media_type='application/x-ndjson')

@@ -1,13 +1,16 @@
-# Implemented journey and remaining gaps
+# Completion Pass 1 user journey
 
-1. Configure the operations token and reviewer identity. Connect the token in Settings; it remains only in application memory. Browser refresh requires reconnection.
-2. Submit an incident in Overview. The frontend creates a persisted incident and submits a durable run; it no longer calls synchronous /api/analyse for new submissions.
-3. Select an incident from Incidents. Its bookmark URL is #/incidents/<MongoID>. The workspace loads on refresh after authentication is connected. Run history and state poll every five seconds.
-4. Connect workspace access, inspect saved run outputs and enter decision notes, source URL and observed evidence. Accept or reject a completed run. AI output itself remains unconfirmed.
-5. Use Actions to create and review a proposal. In the workspace, select an approved incident proposal and record the external change and source reference. Its run must match accepted findings.
-6. Enter verification criteria and manual evidence. Record passed, failed or inconclusive. Failure returns to remediate; inconclusive does not permit resolution.
-7. Explicitly confirm resolution with notes and outstanding risks. Reopen when required; history stays intact.
-8. Write a post-incident report, save its draft, approve it, then index it. Search its actual text in Knowledge. Provenance includes incident ID, report ID and approving identity.
-9. Request targeted reinvestigation with decision notes. A real queued run is persisted; failed delivery remains recoverable in the workflow outbox.
+1. Start MongoDB, the API with the durable worker enabled, Python runtime and frontend as documented in DEPLOYMENT.md. Sign in with the configured engineer credential. Session restoration survives refresh; no browser bearer persistence is used.
+2. Submit title, description and severity from Overview. A stable request key creates one incident and queues its first real investigation, including repeated clicks/retries. Open `/incidents/:id` to inspect canonical status and current run.
+3. Follow actual specialist events and durations. Navigation or browser refresh leaves the leased worker running. Expand historical runs for full findings. Failure/cancellation returns to Open with preserved outcomes; request targeted reinvestigation with notes. Older run pages are available.
+4. Select the current completed run, record an evidence URL and observation, and accept or reject findings. Reviewing does not run agents. Rejection prevents proposal planning; targeted investigation remains available.
+5. Accepted findings enable an inline proposal with action, rationale, validation, target, risk and owner. Edit pending/rejected drafts; edits reset review to pending. Switch to the separately configured approver identity to approve/reject with a comment. Approval persists while the incident remains Remediation planned.
+6. Begin manual remediation against the approved current proposal. Perform the actual change externally, then record what changed, performer, actual time and reference. The application performs no cloud/code writes. This transition enters Verifying.
+7. Record criteria, evidence reference, observed result and Passed/Failed/Inconclusive. Failed returns to remediation; inconclusive remains verifying. Return to remediation or request new investigation when necessary. Every previous attempt remains visible.
+8. A passing observation for the current change enables deliberate resolution, requiring resolution notes and outstanding risks (including an explicit statement when none remain). Failed/inconclusive results cannot resolve.
+9. Draft a factual report manually, obtain approver approval, then index it into existing lexical knowledge. The indexed text includes incident/report/approver provenance. No automatic report content is invented.
+10. Reopen with a reason, then request a new investigation. Prior output, reviews, proposal decisions, verification, resolution and reports remain historical; current review/proposal pointers reset.
 
-This is not a complete Phase 3 experience. Manual creation lacks request-level idempotency; concurrent click protection is only frontend busy state. Reports are manually authored, with no generated draft/editor version comparison. Workspace proposals show the first existing page only. Run history shows the most recent 20. Service/context inputs and evidence attachment on initial submission are incomplete. Full browser back/forward navigation and restored authenticated deep-link loading need E2E tests. Legacy status counters remain independent. Signal detection, automated evidence verification, Entra roles, reviewed GitHub patch/PR operations and semantic retrieval are unfinished.
+The workspace supports recovery paths rather than a rigid wizard. Invalid actions are disabled or rejected by the backend. Conflicts refresh current state while keeping the error visible. Proposal/run pagination, chronological audit, explicit empty/loading/unavailable states and pending-action disabling are wired to persisted APIs. Incident/action legacy shortcut buttons open the workspace; status-only mutation cannot bypass governance.
+
+Bookmarks restore after authentication. Browser back/forward and invalid incident IDs have automated coverage. Expired sessions require signing in again and do not reveal a protected incident. Approver identities can also perform engineering actions; this pass does not implement organizational segregation-of-duty policy.

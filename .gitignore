@@ -39,3 +39,6 @@ venv/
 # Generated files
 *.generated.*
 agent-runtime/.venv/
+
+/test-results/
+/playwright-report/

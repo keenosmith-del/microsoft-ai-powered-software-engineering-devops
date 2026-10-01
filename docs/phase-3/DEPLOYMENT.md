@@ -1,11 +1,48 @@
-# Local startup and deployment boundary
+# Local startup and hosting — Completion Pass 1
 
-Use a supported Node runtime (22.12+ or supported 24), MongoDB and the Python requirements in agent-runtime/requirements.txt. Existing API/runtime ports remain 5050/8000. Copy environment examples and configure actual credentials; existing user .env was not modified.
+Use Node 22.12+ or supported Node 24 (verified with 24.14.1), Python 3.11+, and reachable MongoDB. From the repository root install dependencies:
 
-Configure OPERATIONS_API_TOKEN and OPERATIONS_REVIEWER_ID, then connect the token through Settings and incident workspace. For isolated legacy local development only, OPERATIONS_LOCAL_MODE=true permits legacy reads/writes outside production. It does not bypass new workflow/run/knowledge/proposal authorization. Set INVESTIGATION_WORKER_ENABLED=true to execute real model-backed runs and retry pending outbox delivery. This may incur configured provider usage; leave false until prepared.
+```bash
+nvm use 24
+npm ci
+npm --prefix frontend ci
+python3 -m venv agent-runtime/.venv
+agent-runtime/.venv/bin/python -m pip install -r agent-runtime/requirements.txt
+```
 
-Start runtime with uvicorn main:app --port 8000 from agent-runtime; start API with npm start from root; start frontend with npm run dev from frontend. Ensure the npm script shell selects the same supported Node runtime as your terminal. Existing compose.yaml and optional compose.local.yaml are retained. No container image or actual Compose startup was verified during this checkpoint.
+Configure a private root `.env` using `.env.example` without committing credentials. Required: `MONGODB_URI`, strong `OPERATIONS_API_TOKEN` (at least 32 characters), `OPERATIONS_REVIEWER_ID`, `OPERATIONS_ROLE=engineer`, distinct strong `OPERATIONS_APPROVER_TOKEN` and `OPERATIONS_APPROVER_ID` for approvals, `INVESTIGATION_WORKER_ENABLED=true`. Keep `OPERATIONS_LOCAL_MODE=false`. Configure real Foundry/GitHub/Azure settings for live investigation. API defaults 5050, runtime 8000. This pass did not change secrets.
 
-External prerequisites: real MongoDB URI/index permissions; configured Foundry project endpoint and model deployment with Azure identity/token access; GitHub owner/repository/branch and read token for private evidence; Azure subscription/resource group and read permissions for inventory/activity. Azure metrics/App Insights and semantic cloud retrieval adapters are not yet implemented. GitHub PR writes are disabled. No paid services were provisioned.
+Three terminals, starting in repository root:
 
-Entra integration and role mapping are unfinished; do not expose this checkpoint as a production multi-user platform. Existing GitHub Actions run Node tests, frontend lint/build, Python contracts and dependency checks. New Node tests are included by tests/*.test.js; Mongo test remains opt-in in CI. Docker build, integration database service, browser E2E/visual jobs and production IaC still need implementation.
+```bash
+# Terminal 1
+cd agent-runtime
+.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+```bash
+# Terminal 2
+npm run dev
+```
+
+```bash
+# Terminal 3
+npm --prefix frontend run dev -- --host 127.0.0.1
+```
+
+Open `http://127.0.0.1:5173`, sign in, and submit an incident. Leave VITE_API_BASE_URL empty for the development same-origin proxy; localhost is also supported by default CORS. Foundry deployment/authentication and scoped read-only GitHub/Azure access are external prerequisites for live evidence. Missing configuration is unavailable/error, never synthetic success.
+
+Production needs HTTPS, same-origin API reverse proxy, SPA fallback for `/incidents/:id`, explicit `CORS_ORIGINS`, `NODE_ENV=production`, reachable durable MongoDB, enabled worker and runtime. Cookies become Secure. Session TTL is OPERATIONS_SESSION_SECONDS, clamped 60–86400 (default 28800). Production deployment, Docker smoke and cloud inference were not exercised in this pass.
+
+For reproducible cloud-free verification:
+
+```bash
+npm test
+(cd agent-runtime && .venv/bin/python -m unittest discover -p 'test_*.py')
+npm --prefix frontend run build
+npm --prefix frontend run lint
+npx playwright install chromium
+npm run test:e2e
+```
+
+Tests use isolated local MongoDB, actual API/worker/frontend, and test-only deterministic runtime streams. Local system mongod/Chrome are used when available; otherwise MongoMemoryServer/Playwright obtain test binaries. CI installs Chromium with OS dependencies. Local network/binary-download permissions may be needed. E2E ports 5050/5173 and test runtime 8001 must be free. No paid cloud account is required.

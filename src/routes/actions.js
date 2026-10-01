@@ -38,11 +38,15 @@ function toAction(incident) {
 
 router.get('/', async (_req, res) => {
     try {
-        const incidents = await Incident.find({
-            actions: { $exists: true, $nin: ['', null] },
-        }).sort({ updatedAt: -1 });
+        const incidents = await Incident.find().sort({ updatedAt: -1 }).limit(500);
 
-        res.json(incidents.map(toAction));
+        const lifecycle = require('../services/incidentLifecycle');
+        const records = await Promise.all(incidents.map(incident => lifecycle.read(incident._id)));
+        const actions = await Promise.all(records.map(async incident => {
+            const run = await require('../models/InvestigationRun').findOne({ incidentId: incident._id, status: 'completed' }).sort({ createdAt: -1 }).lean();
+            return { ...incident, actions: run?.result?.actions || incident.actions };
+        }));
+        res.json(actions.filter(incident => incident.actions).map(incident => ({ ...toAction(incident), incidentStatus: incident.status, status: incident.workflow.stage === 'resolved' ? 'Verified' : incident.workflow.stage === 'verify' ? 'Awaiting verification' : incident.workflow.stage === 'remediate' ? 'In progress' : 'Recommended' })));
     } catch (error) {
         console.error('Failed to fetch engineering actions:', error);
         res.status(500).json({
@@ -52,42 +56,6 @@ router.get('/', async (_req, res) => {
     }
 });
 
-router.patch('/:id/status', async (req, res) => {
-    try {
-        const incident = await Incident.findById(req.params.id);
-
-        if (!incident || !incident.actions) {
-            return res.status(404).json({
-                success: false,
-                error: 'Engineering action not found',
-            });
-        }
-
-        const currentStatus = incident.actionStatus || 'Recommended';
-        const nextStatus = allowedTransitions[currentStatus];
-
-        if (!nextStatus || req.body.status !== nextStatus) {
-            return res.status(409).json({
-                success: false,
-                error: `Action cannot move from ${currentStatus} to ${req.body.status}`,
-                expectedStatus: nextStatus || null,
-            });
-        }
-
-        incident.actionStatus = nextStatus;
-        if (nextStatus === 'Awaiting verification') {
-            incident.status = 'Awaiting review';
-        }
-        await incident.save();
-
-        res.json(toAction(incident));
-    } catch (error) {
-        console.error('Failed to update engineering action:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to update engineering action',
-        });
-    }
-});
+router.patch('/:id/status', (_req, res) => res.status(409).json({ code: 'LIFECYCLE_ACTION_REQUIRED', error: 'Use the incident workspace to review findings, record approved changes and supply verification evidence; status-only action changes are disabled' }));
 
 module.exports = router;

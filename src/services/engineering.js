@@ -63,6 +63,10 @@ function createEngineeringService({ db = mongoose.connection, incidents = Incide
         let workerState = null;
         if (mongo.status === 'operational') {
             try {
+                if (incidents === Incident) {
+                    const records = Incident.find().select('_id').lean().cursor();
+                    for await (const record of records) await require('./incidentLifecycle').read(record._id);
+                }
                 const active = { status: { $ne: 'Resolved' } };
                 const values = await Promise.all([
                     incidents.countDocuments(active).maxTimeMS(3000),
@@ -81,7 +85,7 @@ function createEngineeringService({ db = mongoose.connection, incidents = Incide
         return { checkedAt: stamp(), cacheTtlMs: ttl, services: [
             { id: 'api', status: 'operational', checkedAt: stamp(), detail: 'Gateway handled this request; response latency measured by the browser' },
             mongo, agent, github, azure, foundry,
-            { id: 'telemetry', status: mongo.status === 'operational' && !dataError ? 'operational' : 'unavailable', checkedAt: stamp(), detail: 'Persisted run history; individual agent timing and provider usage are not measured' },
+            { id: 'telemetry', status: mongo.status === 'operational' && !dataError ? 'operational' : 'unavailable', checkedAt: stamp(), detail: 'Persisted run history and actual agent-stage timing; provider token usage is not measured' },
             { id: 'worker', status: workerState?.status === 'active' && now() - new Date(workerState.heartbeatAt).getTime() < 30000 ? 'operational' : env.INVESTIGATION_WORKER_ENABLED === 'true' ? 'unavailable' : 'not_configured', checkedAt: stamp(), detail: workerState?.heartbeatAt ? `Last worker heartbeat: ${new Date(workerState.heartbeatAt).toISOString()}` : 'No persisted worker heartbeat; enable INVESTIGATION_WORKER_ENABLED after configuration' },
         ], metrics, activity, signals, dataError };
     }

@@ -5,7 +5,7 @@ const WorkerState = require('../models/WorkerState');
 const { retrieve } = require('./knowledge');
 const { redact } = require('./redaction');
 const terminal = ['completed', 'failed', 'cancelled'];
-function createInvestigationWorker({ runs = Run, incidents = Incident, fetcher = fetch, env = process.env, now = Date.now, owner = randomUUID(), retrieval = retrieve, statusWriter = at => WorkerState.findOneAndUpdate({ workerId: owner }, { $set: { heartbeatAt: at, status: 'active' } }, { upsert: true }) } = {}) {
+function createInvestigationWorker({ runs = Run, incidents = Incident, fetcher = fetch, env = process.env, now = Date.now, owner = randomUUID(), retrieval = retrieve, reconcile = runs === Run ? require('./incidentLifecycle').reconcileRun : async () => {}, statusWriter = at => WorkerState.findOneAndUpdate({ workerId: owner }, { $set: { heartbeatAt: at, status: 'active' } }, { upsert: true }) } = {}) {
     let busy = false;
     let stopped = false;
     let timer;
@@ -28,8 +28,9 @@ function createInvestigationWorker({ runs = Run, incidents = Incident, fetcher =
             ] }, { $set: { status: 'running', currentStage: 'runtime', leaseOwner: owner, leaseUntil: new Date(now() + leaseMs) }, $inc: { attempts: 1 } }, { returnDocument: 'after', sort: { createdAt: 1 } });
             if (!run) return;
             const owned = { runId: run.runId, status: 'running', leaseOwner: owner, attempts: run.attempts };
-            const event = (status, detail) => ({ id: run.attempts * 2 + (status === 'running' ? 0 : 1), status, stage: status === 'running' ? 'runtime' : status, at: new Date(now()), detail });
-            const started = await runs.updateOne(owned, { $set: { startedAt: run.startedAt || at }, $push: { events: event('running', 'Agent runtime request started; individual stage telemetry unavailable') } });
+            let sequence = run.attempts * 20;
+            const event = (status, detail) => ({ id: sequence++, status, stage: status === 'running' ? 'runtime' : status, at: new Date(now()), detail });
+            const started = await runs.updateOne(owned, { $set: { startedAt: run.startedAt || at }, $push: { events: event('running', 'Agent runtime stream started') } });
             if (!started.matchedCount) return;
             const controller = new AbortController();
             activeController = controller;
@@ -49,28 +50,32 @@ function createInvestigationWorker({ runs = Run, incidents = Incident, fetcher =
                 catch { knowledge = { results: [], unavailable: true }; }
                 const evidenceWrite = await runs.updateOne(owned, { $set: { retrievalStatus: knowledge.unavailable ? 'unavailable' : 'available', evidenceReferences: knowledge.results.map(({ documentId, section, ordinal, indexedAt, sourceUrl }) => ({ documentId, section, ordinal, indexedAt, sourceUrl })) } });
                 if (!evidenceWrite.matchedCount) { lostLease = true; controller.abort(); return; }
-                const response = await fetcher(`${(env.AGENT_RUNTIME_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')}/analyse`, {
+                const response = await fetcher(`${(env.AGENT_RUNTIME_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')}/analyse-stream`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Correlation-ID': run.correlationId },
                     body: JSON.stringify({ problem: run.context?.notes ? `${incident.description}\n\nHuman reinvestigation context:\n${run.context.notes}` : incident.description, retrieved_evidence: knowledge.results.map(({ documentId, section, ordinal, text }) => ({ document_id: documentId, section, ordinal, text })) }), signal: controller.signal,
                 });
                 if (!response.ok) throw new Error('Agent runtime request failed');
-                const data = await response.json();
-                if (!['analysis', 'investigation', 'actions'].every(key => typeof data[key] === 'string' && data[key].trim() && data[key].length <= 200000)) throw Object.assign(new Error('Agent runtime returned invalid structured output'), { permanent: true });
+                const data = await require('./runtimeStream').consume(response, async stage => {
+                    if (lostLease) throw new Error('Worker lease lost');
+                    const result = await runs.updateOne(owned, { $set: { currentStage: stage.stage }, $push: { events: { id: sequence++, status: stage.status, stage: stage.stage, at: new Date(stage.at), elapsedMs: stage.elapsedMs, detail: stage.status === 'failed' ? 'Agent stage failed; provider details redacted' : `Agent ${stage.status}` } } });
+                    if (!result.matchedCount) { lostLease = true; controller.abort(); throw new Error('Run cancelled or lease lost'); }
+                });
                 if (!lostLease) await runs.updateOne(owned, { $set: {
                     status: 'completed', currentStage: 'completed', completedAt: new Date(now()), elapsedMs: now() - new Date(run.startedAt || at).getTime(),
                     result: { analysis: redact(data.analysis, env), investigation: redact(data.investigation, env), actions: redact(data.actions, env) }, error: null,
-                }, $unset: { leaseOwner: 1, leaseUntil: 1 }, $push: { events: event('completed', 'Outputs persisted separately; incident lifecycle unchanged') } });
+                }, $unset: { leaseOwner: 1, leaseUntil: 1 }, $push: { events: event('completed', 'All stage outputs persisted; findings ready for review') } });
             } catch (error) {
                 if (!lostLease) {
                     const status = error.permanent || run.attempts >= 3 ? 'failed' : 'queued';
                     await runs.updateOne(owned, { $set: { status, currentStage: status, error: error.permanent ? error.message : 'Runtime failed or timed out', nextAttemptAt: new Date(now() + 10000 * 2 ** (run.attempts - 1)), ...(status === 'failed' ? { completedAt: new Date(now()), elapsedMs: now() - new Date(run.startedAt || at).getTime() } : {}) }, $unset: { leaseOwner: 1, leaseUntil: 1 }, $push: { events: event(status, status === 'queued' ? 'Retry scheduled with backoff' : 'Execution failed') } });
                 }
             } finally { clearTimeout(timeout); }
+            if (runs === Run) { const terminalRun = await runs.findOne({ runId: run.runId }).lean(); if (terminalRun) await reconcile(terminalRun); }
         } finally { clearInterval(heartbeat); activeController = null; busy = false; }
     }
     return {
         tick,
-        start() { stopped = false; timer = setInterval(() => require('./investigationOutbox').drain().then(() => tick()).catch(() => console.error('Investigation worker database operation failed')), 2000); timer.unref(); },
+        start() { stopped = false; timer = setInterval(() => require('./investigationOutbox').drain().then(() => require('./incidentLifecycle').repair()).then(() => tick()).catch(() => console.error('Investigation worker database operation failed')), 2000); timer.unref(); },
         stop() { stopped = true; clearInterval(timer); activeController?.abort(); },
     };
 }

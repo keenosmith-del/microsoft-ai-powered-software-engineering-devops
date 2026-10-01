@@ -28,6 +28,10 @@ jobs:
       - name: Deterministic Python contracts and evidence safety
         working-directory: agent-runtime
         run: python -m unittest test_configuration_contract test_evidence_context test_runtime_contract
+      - name: Browser dependency
+        run: npx playwright install --with-deps chromium
+      - name: Deterministic local browser journey
+        run: npm run test:e2e
       - name: Dependency vulnerability checks
         run: |
           npm audit --audit-level=high

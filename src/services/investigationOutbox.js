@@ -1,12 +1,12 @@
 const Run = require('../models/InvestigationRun');
 const Workflow = require('../models/IncidentWorkflow');
 async function enqueue(incidentId, request) {
- const run = await Run.findOneAndUpdate({ incidentId, idempotencyKey: `workflow-${request.runId}` }, { $setOnInsert: {
-  incidentId, idempotencyKey: `workflow-${request.runId}`, runId: request.runId, requestedBy: request.actor,
+ const run = await Run.findOneAndUpdate({ incidentId, idempotencyKey: request.idempotencyKey || `workflow-${request.runId}` }, { $setOnInsert: {
+  incidentId, idempotencyKey: request.idempotencyKey || `workflow-${request.runId}`, runId: request.runId, requestedBy: request.actor,
   context: { notes: request.notes }, deployment: process.env.AZURE_OPENAI_DEPLOYMENT,
   events: [{ id: 1, status: 'queued', stage: 'queued', at: new Date(), detail: 'Human targeted reinvestigation submitted' }],
  } }, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true });
- await Workflow.updateOne({ incidentId, 'workflow.pendingInvestigation.runId': request.runId }, { $unset: { 'workflow.pendingInvestigation': 1 } });
+ await require('./incidentLifecycle').attachRun(incidentId, run.toObject(), request);
  return run;
 }
 async function drain() {

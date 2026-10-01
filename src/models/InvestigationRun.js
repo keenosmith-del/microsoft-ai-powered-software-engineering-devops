@@ -24,7 +24,7 @@ const schema = new mongoose.Schema({
     evidenceReferences: [{ _id: false, documentId: String, section: String, ordinal: Number, indexedAt: Date, sourceUrl: String }],
     context: { notes: String },
     cancellation: { requestedBy: String, requestedAt: Date, detail: String },
-    events: [{ _id: false, id: Number, status: String, stage: String, at: Date, detail: String }],
+    events: [{ _id: false, id: Number, status: String, stage: String, at: Date, detail: String, elapsedMs: Number }],
 }, { timestamps: true });
 schema.index({ incidentId: 1, idempotencyKey: 1 }, { unique: true });
 schema.index({ status: 1, leaseUntil: 1, nextAttemptAt: 1 });

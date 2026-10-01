@@ -1,15 +1,22 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5050').replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
 let operationsToken = ''
+let csrfToken = ''
 export function setOperationsToken(token: string) { operationsToken = token }
 
 async function request<T>(path: string, init?: RequestInit, fallback = 'Request failed'): Promise<T> {
   const timeout = AbortSignal.timeout(path === '/api/analyse' || path.endsWith('/retry') ? 310_000 : 30_000)
   const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers: { ...(operationsToken ? { Authorization: `Bearer ${operationsToken}` } : {}), ...Object.fromEntries(new Headers(init?.headers).entries()) }, signal })
+  const sentCsrf = csrfToken
+  const headers = new Headers(init?.headers)
+  if (/^Bearer\s*$/.test(headers.get('Authorization') || '')) headers.delete('Authorization')
+  if (operationsToken && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${operationsToken}`)
+  if (csrfToken && !['GET', 'HEAD'].includes(init?.method || 'GET')) headers.set('X-CSRF-Token', csrfToken)
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, signal, credentials: 'include' })
   const data = await response.json().catch(() => null)
 
   if (!response.ok) {
+    if (response.status === 401 && csrfToken === sentCsrf) { csrfToken = ''; operationsToken = ''; window.dispatchEvent(new Event('ops-session-expired')) }
     throw new Error(data?.detail || data?.error || fallback)
   }
 
@@ -122,7 +129,7 @@ export type Incident = {
   description: string
   service: string
   severity: 'Critical' | 'High' | 'Medium' | 'Low'
-  status: 'Investigating' | 'Open' | 'Awaiting review' | 'Resolved'
+  status: 'Investigating' | 'Open' | 'Awaiting review' | 'Remediation planned' | 'In remediation' | 'Verifying' | 'Resolved'
   analysis: string
   investigation: string
   actions: string
@@ -254,7 +261,7 @@ export type InvestigationRun = {
   currentStage: string; attempts: number; deployment?: string; correlationId: string
   createdAt: string; startedAt?: string; completedAt?: string; elapsedMs?: number; error?: string
   result?: { analysis: string; investigation: string; actions: string }
-  events: { id: number; status: string; stage: string; at: string; detail: string }[]
+  events: { id: number; status: string; stage: string; at: string; detail: string; elapsedMs?: number }[]
 }
 export function getInvestigationRuns(token: string, page: number, signal?: AbortSignal, incidentId?: string) {
   return request<{ items: InvestigationRun[]; page: number; hasNext: boolean }>(`/api/investigations?page=${page}${incidentId ? `&incidentId=${encodeURIComponent(incidentId)}` : ''}`, { headers: { Authorization: `Bearer ${token}` }, signal })
@@ -280,24 +287,24 @@ export function deleteKnowledge(token: string, id: string) {
   return request(`/api/knowledge/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
 }
 export type RemediationProposal = {
-  _id: string; incidentId: string; runId: string; title: string; action: string; rationale: string; validationPlan: string; target: string; risk: string; approvalStatus: 'pending' | 'approved' | 'rejected'; executionStatus: 'disabled'; version: number
+  _id: string; incidentId: string; runId: string; title: string; action: string; rationale: string; validationPlan: string; target: string; risk: string; owner?: string; reviewId?: string; approvalStatus: 'pending' | 'approved' | 'rejected'; executionStatus: 'disabled'; version: number
   audit: { actor: string; at: string; action: string; version: number }[]
 }
-export function listProposals(token: string) {
-  return request<{ items: RemediationProposal[]; hasNext: boolean }>('/api/remediation', { headers: { Authorization: `Bearer ${token}` } })
+export function listProposals(token: string, page = 1, incidentId?: string) {
+  return request<{ items: RemediationProposal[]; hasNext: boolean }>(`/api/remediation?page=${page}${incidentId ? `&incidentId=${incidentId}` : ''}`, { headers: { Authorization: `Bearer ${token}` } })
 }
-export function createProposal(token: string, body: Omit<RemediationProposal, '_id' | 'approvalStatus' | 'executionStatus' | 'version' | 'audit'>) {
-  return request<RemediationProposal>('/api/remediation', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+export function createProposal(token: string, body: { incidentId: string; runId: string; title: string; action: string; rationale: string; validationPlan: string; target: string; risk: string; owner?: string }, key = crypto.randomUUID()) {
+  return request<RemediationProposal>('/api/remediation', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: JSON.stringify(body) })
 }
 export function reviewProposal(token: string, proposal: RemediationProposal, decision: 'approved' | 'rejected', comment: string) {
   return request<RemediationProposal>(`/api/remediation/${proposal._id}/review`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ decision, version: proposal.version, comment }) })
 }
 
 export type IncidentWorkflow = {
- stage: string; version: number
- reviews: { id: string; runId: string; decision: string }[]
- changes: { id: string; proposalId: string }[]
- verifications: { id: string; result: string; criteria: string }[]
+ stage: string; version: number; currentReviewId?: string; lastRunId?: string
+ reviews: { id: string; runId: string; decision: string; evidence?: { source: string; reference: string; observation: string }[] }[]
+ changes: { id: string; proposalId: string; notes?: string; performedBy?: string; performedAt?: string; reference?: string }[]
+ verifications: { id: string; result: string; criteria: string; evidence?: { source: string; reference: string; observation: string }[] }[]
  resolutions: { id: string; notes: string }[]
  reports?: { id: string; content: string; status: string }[]
  audit: { id: string; actor: string; at: string; action: string; notes: string }[]
@@ -309,8 +316,8 @@ export function updateIncidentWorkflow(token: string, incidentId: string, body: 
  return request<IncidentWorkflow>(`/api/incidents/${incidentId}/workflow`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 }
 
-export function createManualIncident(description: string, severity: Incident['severity']) {
- return request<Incident>('/api/incidents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: description.slice(0, 80), description, severity }) })
+export function createManualIncident(description: string, severity: Incident['severity'], key: string) {
+ return request<Incident>('/api/incidents', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: JSON.stringify({ title: description.slice(0, 80), description, severity, investigate: true }) })
 }
 export function startDurableInvestigation(incidentId: string, key: string) {
  return request<InvestigationRun>(`/api/incidents/${incidentId}/investigations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: JSON.stringify({ triggerSource: 'manual' }) })
@@ -318,4 +325,40 @@ export function startDurableInvestigation(incidentId: string, key: string) {
 
 export function indexIncidentReport(token: string, incidentId: string) {
  return request<{ documentId: string; reportId: string; method: string }>(`/api/incidents/${incidentId}/workflow/report/index`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+}
+
+export type OperationSession = { actor: string; role: string; csrf: string; expiresAt: string }
+export async function restoreSession() {
+ const value = await request<OperationSession>('/api/session'); csrfToken = value.csrf; return value
+}
+export async function loginSession(token: string) {
+ operationsToken = ''
+ const value = await request<OperationSession>('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) })
+ csrfToken = value.csrf; window.dispatchEvent(new Event('ops-auth-changed')); return value
+}
+export async function logoutSession() { await request('/api/session', { method: 'DELETE' }); csrfToken = ''; operationsToken = ''; window.dispatchEvent(new Event('ops-auth-changed')) }
+export function editProposal(proposal: RemediationProposal, fields: Record<string, string>) {
+ return request<RemediationProposal>(`/api/remediation/${proposal._id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version: proposal.version, ...fields }) })
+}
+export async function watchRun(runId: string, signal: AbortSignal, onEvent: () => void) {
+ let cursor = 0
+ while (!signal.aborted) {
+  try {
+   const response = await fetch(`${API_BASE_URL}/api/investigations/${runId}/events?after=${cursor}`, { credentials: 'include', signal })
+   if (!response.ok || !response.body) throw new Error('Live events unavailable; polling continues')
+   const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''
+   try {
+    while (!signal.aborted) {
+     const { done, value } = await reader.read(); if (done) break
+     buffer += decoder.decode(value, { stream: true }); let end
+     while ((end = buffer.indexOf('\n\n')) >= 0) {
+      const frame = buffer.slice(0, end); buffer = buffer.slice(end + 2)
+      const id = frame.match(/^id: (\d+)/m); const data = frame.match(/^data: (.+)$/m)
+      if (id && data && Number(id[1]) > cursor) { cursor = Number(id[1]); onEvent(); const event = JSON.parse(data[1]); if (['completed', 'failed', 'cancelled'].includes(event.status) && ['completed', 'failed', 'cancelled'].includes(event.stage)) return }
+     }
+    }
+   } finally { await reader.cancel().catch(() => {}) }
+  } catch { if (signal.aborted) return }
+  await new Promise<void>(resolve => { const timer = window.setTimeout(resolve, 1500); signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true }) })
+ }
 }

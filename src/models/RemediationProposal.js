@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 const schema = new mongoose.Schema({
     incidentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Incident', required: true },
     runId: { type: String, required: true },
+    reviewId: String,
+    owner: { type: String, default: '' },
+    planningVersion: Number,
+    requestHash: String,
+    requestKey: { type: String, unique: true, sparse: true },
     title: { type: String, required: true },
     action: { type: String, required: true },
     rationale: { type: String, required: true },

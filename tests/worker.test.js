@@ -11,7 +11,7 @@ function fixture() {
 test('worker claims leased Mongo state and persists complete sanitized outputs without changing Incident', async () => {
     const f = fixture();
     let request;
-    const worker = createInvestigationWorker({ ...f, owner: 'test-owner', now: () => 100, env: { GITHUB_TOKEN: 'test-secret-value' }, fetcher: async (_url, options) => { request = options; return { ok: true, json: async () => ({ analysis: 'Bearer private-token', investigation: 'test-secret-value', actions: 'Test output' }) }; } });
+    const worker = createInvestigationWorker({ ...f, owner: 'test-owner', now: () => 100, env: { GITHUB_TOKEN: 'test-secret-value' }, fetcher: async (_url, options) => { request = options; return require('./runtimeFixture')({ analysis: 'Bearer private-token', investigation: 'test-secret-value', actions: 'Test output' }); } });
     await worker.tick();
     const claim = f.writes.find(write => write.update.$inc);
     assert.equal(claim.update.$set.leaseOwner, 'test-owner');

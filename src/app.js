@@ -23,9 +23,10 @@ app.use((req, res, next) => {
     res.json = body => send(res.statusCode >= 400 && body && !Array.isArray(body) ? { ...body, code: body.code || `HTTP_${res.statusCode}`, requestId: req.requestId } : body);
     next();
 });
-app.use(cors({ origin: (origin, callback) => callback(null, !origin || origins.includes(origin)), exposedHeaders: ['X-Request-ID'] }));
+app.use(cors({ origin: (origin, callback) => callback(null, !origin || origins.includes(origin)), credentials: true, exposedHeaders: ['X-Request-ID'] }));
 app.use(express.json({ limit: '256kb' }));
 
+app.use('/api/session', require('./routes/session'));
 app.use('/api/incidents/:id/workflow', require('./routes/incidentWorkflow'));
 app.use('/api/incidents/:id/investigations', require('./routes/incidentInvestigations'));
 app.use('/api/incidents', require('./middleware/legacyBoundary'), incidentRoutes);
@@ -49,13 +50,13 @@ app.get('/health', (req, res) => {
 });
 
 app.use((error, _req, res, _next) => {
-    res.status(Number.isInteger(error.status) && error.status >= 400 && error.status <= 599 ? error.status : 503).json({ code: 'REQUEST_FAILED', error: 'Request failed; verify input and service connectivity' });
+    res.status(Number.isInteger(error.status) && error.status >= 400 && error.status <= 599 ? error.status : 503).json({ code: error.code || 'REQUEST_FAILED', error: error.status && error.status < 500 ? error.message : 'Request failed; verify input and service connectivity' });
 });
 
 async function startServer() {
     await connectDatabase();
 
-    await Promise.all(['InvestigationRun', 'KnowledgeDocument', 'RemediationProposal', 'WorkerState', 'IncidentWorkflow'].map(name => require(`./models/${name}`).init()));
+    await Promise.all(['Incident', 'InvestigationRun', 'KnowledgeDocument', 'RemediationProposal', 'WorkerState', 'IncidentWorkflow', 'OperationSession'].map(name => require(`./models/${name}`).init()));
     if (process.env.INVESTIGATION_WORKER_ENABLED === 'true') {
         const worker = require('./services/investigationWorker').createInvestigationWorker();
         worker.start();

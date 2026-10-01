@@ -38,11 +38,9 @@ test('SSE replay respects event cursor and closes at terminal state; JSON pollin
     const polling = await fetch(base + path + '?format=json&after=2', { headers: { Authorization: `Bearer ${token}` } });
     assert.deepEqual((await polling.json()).events, [{ id: 3, status: 'completed' }]);
 });
-test('approval uses pending status and current version atomically; stale reviews conflict', async () => {
-    let filter, update;
-    Proposal.findOneAndUpdate = async (f, u) => { filter = f; update = u; return null; };
-    const response = await fetch(base + '/proposals/000000000000000000000001/review', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'approved', version: 4, comment: 'Test review' }) });
-    assert.equal(response.status, 409); assert.equal(filter.version, 4); assert.equal(filter.approvalStatus, 'pending'); assert.equal(update.$inc.version, 1); assert.equal(update.$push.audit.actor, 'test-reviewer');
+test('shared engineer cannot approve a proposal even with a valid bearer token', async () => {
+ const response = await fetch(base + '/proposals/000000000000000000000001/review', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'approved', version: 4, comment: 'Test review' }) });
+ assert.equal(response.status, 403);
 });
 test('remote execution remains disabled even with valid authorization', async () => {
     const response = await fetch(base + '/proposals/test/execute', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });

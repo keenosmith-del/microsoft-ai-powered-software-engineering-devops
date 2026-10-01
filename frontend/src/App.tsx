@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   createManualIncident,
-  startDurableInvestigation,
+  restoreSession,
   getActions,
   getApiHealth,
   getCloudPlatform,
@@ -25,6 +25,7 @@ import Actions from './components/Actions/Actions'
 import Repository from './components/Repository/Repository'
 import Agents from './components/Agents/Agents'
 import AzureFoundry from './components/Azure-Foundry/Azure-Foundry'
+import SessionAccess from './components/Settings/SessionAccess'
 import Settings from './components/Settings/Settings'
 import Knowledge from './components/Knowledge/Knowledge'
 import foundryMark from './assets/foundry.png'
@@ -140,6 +141,8 @@ function MarkdownContent({ content }: { content: string }) {
 
 function App() {
   const [activeView, setActiveView] = useState('overview')
+  const [submissionKey, setSubmissionKey] = useState(() => crypto.randomUUID())
+  const navigate = (view: string) => { window.history.pushState(null, '', view === 'overview' ? '/' : `/${view}`); setActiveView(view) }
   const [overview, setOverview] = useState<OverviewSnapshot | null>(null)
   const [overviewLoading, setOverviewLoading] = useState(true)
   const [overviewRefreshing, setOverviewRefreshing] = useState(false)
@@ -226,10 +229,11 @@ function App() {
     setInvestigationError('')
     setAgentExecution(current => current.map(agent => ({ ...agent, status: 'idle' })))
     try {
-      const created = await createManualIncident(incident.trim(), severity)
+      const created = await createManualIncident(incident.trim(), severity, submissionKey)
       setSelectedIncident(created)
-      window.history.replaceState(null, '', `#/incidents/${created._id}`)
-      await startDurableInvestigation(created._id, crypto.randomUUID())
+      setSubmissionKey(crypto.randomUUID())
+      window.history.pushState(null, '', `/incidents/${created._id}`)
+      setActiveView('incident')
       setAgentStatus('ready')
       void refreshOverview()
     } catch (error) {
@@ -268,16 +272,16 @@ function App() {
       })),
     )
 
-    setActiveView('overview')
+    navigate('overview')
   }
 
   const handleSelectIncident = async (incidentId: string) => {
-    window.history.replaceState(null, '', `#/incidents/${incidentId}`)
+    if (window.location.pathname !== `/incidents/${incidentId}`) window.history.pushState(null, '', `/incidents/${incidentId}`)
     setInvestigationError('')
     setInvestigationResult(null)
     setSelectedIncident(null)
     setAgentStatus('loading')
-    setActiveView('overview')
+    setActiveView('incident')
 
     setAgentExecution([
       {
@@ -363,16 +367,20 @@ function App() {
 
   useEffect(() => {
     const restore = () => {
-      const match = window.location.hash.match(/^#\/incidents\/([a-fA-F0-9]{24})$/)
-      if (match) void handleSelectIncident(match[1])
+      const path = window.location.pathname
+      const match = path.match(/^\/incidents\/([a-fA-F0-9]{24})$/)
+      if (match) { void handleSelectIncident(match[1]); return }
+      const view = path === '/' ? 'overview' : path.slice(1)
+      setActiveView(['overview', 'incidents', 'engineering', 'actions', 'repository', 'agents', 'azure-foundry', 'settings', 'knowledge'].includes(view) ? view : 'notfound')
     }
-    restore()
-    window.addEventListener('hashchange', restore)
-    return () => window.removeEventListener('hashchange', restore)
+    void restoreSession().catch(() => null).finally(restore)
+    window.addEventListener('popstate', restore)
+    window.addEventListener('ops-auth-changed', restore)
+    return () => { window.removeEventListener('popstate', restore); window.removeEventListener('ops-auth-changed', restore) }
   }, [])
 
   const activeIncidentCount = overview?.incidents?.filter((item) =>
-    item.status === 'Investigating' || item.status === 'Open',
+    item.status !== 'Resolved',
   ).length
   const openActionCount = overview?.actions?.filter((item) => item.status !== 'Verified').length
   const confirmedChecks = [
@@ -410,7 +418,7 @@ function App() {
     <div className="app-shell">
       <Sidebar
         activeView={activeView}
-        onNavigate={setActiveView}
+        onNavigate={navigate}
       />
 
       <div className="app-content">
@@ -432,6 +440,9 @@ function App() {
           </div>
         </header>
 
+        <SessionAccess />
+        {activeView === 'notfound' && <main className="incident-workspace"><h1>Page not found</h1><p>Check the incident address.</p></main>}
+        {activeView === 'incident' && <IncidentWorkspace incidentId={window.location.pathname.split('/')[2]} />}
         {activeView === 'overview' && (
           <main className="dashboard">
 
@@ -468,7 +479,7 @@ function App() {
 
               <article className="metric-card">
                 <div className="metric-heading">
-                  <div className="card-label">OPEN / INVESTIGATING</div>
+                  <div className="card-label">ACTIVE INCIDENTS</div>
                 </div>
                 <div className="metric-value">{activeIncidentCount ?? (overviewLoading ? '…' : '—')}</div>
                 <div className="metric-detail">
@@ -872,7 +883,6 @@ function App() {
         {activeView === 'settings' && <Settings />}
         {activeView === 'knowledge' && <Knowledge />}
 
-        {activeView === 'overview' && selectedIncident && <IncidentWorkspace key={selectedIncident._id} incidentId={selectedIncident._id} />}
 
         <footer className="footer">
           <span>Engineering Operations</span>

@@ -52,3 +52,25 @@ class RuntimeContractTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class StageStreamContractTest(unittest.IsolatedAsyncioTestCase):
+    async def test_stream_records_actual_stage_sequence_and_passes_investigation(self):
+        import json
+        with patch.object(main, 'SoftwareEngineeringAgent') as software, patch.object(main, 'IncidentInvestigationAgent') as investigation, patch.object(main, 'EngineeringActionAgent') as action:
+            software.return_value.analyse.return_value = 'Fixture analysis'
+            investigation.return_value.investigate.return_value = 'Fixture investigation'
+            action.return_value.recommend.return_value = 'Fixture action'
+            response = main.analyse_stream(main.EngineeringProblem(problem='Fixture'))
+            events = [json.loads(line) async for line in response.body_iterator]
+            self.assertEqual([e['status'] for e in events], ['running', 'completed'] * 3)
+            self.assertTrue(all(e['elapsedMs'] >= 0 for e in events if e['status'] == 'completed'))
+            self.assertEqual(action.return_value.recommend.call_args.kwargs['investigation'], 'Fixture investigation')
+
+    async def test_failed_stage_is_sanitized_and_later_agents_do_not_run(self):
+        import json
+        with patch.object(main, 'SoftwareEngineeringAgent') as software, patch.object(main, 'IncidentInvestigationAgent') as investigation:
+            software.return_value.analyse.side_effect = RuntimeError('Secret provider detail')
+            events = [json.loads(line) async for line in main.analyse_stream(main.EngineeringProblem(problem='Fixture')).body_iterator]
+            self.assertEqual(events[-1]['status'], 'failed')
+            self.assertNotIn('Secret', str(events))
+            investigation.assert_not_called()
